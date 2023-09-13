@@ -1,0 +1,194 @@
+"use client";
+import { Button } from "@/components/ui/button";
+import { TCQualifications, TQualifications } from "@/types/qualifications";
+import { ZCQualifications } from "@/validators/qualifications";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import { useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "react-toastify";
+import { MinusCircleIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+
+const CvSkillsForm = ({ data }: { data: TQualifications[] }) => {
+  const [btnDisabled, setBtnDisabled] = useState(false);
+  const queryClient = useQueryClient();
+
+  const form = useForm<TCQualifications>({
+    resolver: zodResolver(ZCQualifications),
+
+    defaultValues: {
+      qualifications:
+        data.length > 0
+          ? data
+          : [
+              {
+                field_of_acitvity: "skills",
+                institution: "",
+                type_of_activity: "",
+                year: "",
+              },
+            ],
+    },
+  });
+
+  const skillFields = useFieldArray({
+    control: form.control,
+    name: "qualifications",
+  });
+
+  const onSubmit = (data: TCQualifications) => {
+    setBtnDisabled(true);
+    updateSkills({
+      qualifications: data.qualifications.map((item) => ({
+        ...item,
+        field_of_acitvity: "skills",
+      })),
+    });
+  };
+  const { mutate: updateSkills } = useMutation(
+    (payload: TCQualifications) =>
+      toast.promise(axios.patch("/api/user/qualifications", payload), {
+        pending: "Updating User Skills!",
+        success: "Updated successfully!",
+        error: "Error updating, please try again later",
+      }),
+    {
+      onSuccess: () => {
+        setBtnDisabled(false);
+        queryClient.invalidateQueries(["userList"]);
+      },
+      onError: (error) => {
+        setBtnDisabled(false);
+        console.log(error);
+      },
+    }
+  );
+  return (
+    <Form {...form}>
+      <form className="mx-12" onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="">
+          <div className="space-y-8 ">
+            {skillFields.fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-6 shadow-md mt-4  shadow-foreground p-4 rounded-md gap-4">
+                <div className="col-span-5 m-4 flex items-center justify-center gap-4 text-primary text-lg underline">
+                  <p>Skill Details 0{index + 1}</p>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="" type="button">
+                      <MinusCircleIcon className="text-destructive p-1 w-7 h-7 shadow-sm shadow-foreground rounded-full" size={20} />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Are you sure you want to discard your inputs?
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center  justify-center gap-3">
+                      <Button
+                        className=" flex items-center justify-center  "
+                        variant="destructive"
+                        onClick={() => skillFields.remove(index)}
+                      >
+                        Discard
+                      </Button>
+                      <DialogPrimitive.Close>
+                        <Button className=" flex items-center justify-center  ">
+                          Cancel
+                        </Button>
+                      </DialogPrimitive.Close>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <div className="col-span-6  items-center justify-center ">
+                  <FormField
+                    control={form.control}
+                    name={`qualifications.${index}.type_of_activity`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Activity Name</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-3  items-center justify-center ">
+                  <FormField
+                    control={form.control}
+                    name={`qualifications.${index}.institution`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Institution</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-3  items-center justify-center ">
+                  <FormField
+                    control={form.control}
+                    name={`qualifications.${index}.year`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Pass Year</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className=" flex flex-col  items-center justify-center mt-8">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              skillFields.append({
+                field_of_acitvity: "skills",
+                institution: "",
+                type_of_activity: "",
+                year: "",
+              })
+            }
+          >
+            Add new
+          </Button>
+        </div>
+        <Button type="submit" disabled={btnDisabled} className="w-full mt-6">
+          Save
+        </Button>
+      </form>
+    </Form>
+  );
+};
+export default CvSkillsForm;

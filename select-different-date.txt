@@ -1,0 +1,260 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Input } from "@/components/ui/input";
+import { MinusCircleIcon } from "lucide-react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { TCWork, TWorkExperience } from "@/types/userInfo";
+import { ZCWork } from "@/validators/userInfo";
+import { useState } from "react";
+import { toast } from "react-toastify";
+import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { DatePicker } from "@mui/x-date-pickers";
+import { format, parse } from "date-fns";
+
+const CvExperienceForm = ({
+  experienceData,
+}: {
+  experienceData: TWorkExperience[];
+}) => {
+  // console.log(experienceData);
+
+  // const [fromSelectedDate, setFromSelectedDate] = useState<Date[]>([]);
+  // const [toSelectedDate, setToSelectedDate] = useState<Date | undefined>(
+  //   undefined
+  // );
+  const [btnDisabled, setBtnDisabled] = useState(false);
+  const queryClient = useQueryClient();
+
+  const form = useForm<TCWork>({
+    resolver: zodResolver(ZCWork),
+    defaultValues: {
+      work:
+        experienceData.length > 0
+          ? experienceData
+          : [
+              {
+                company: "",
+                position: "",
+                responsibilities: "",
+                date_from: new Date(),
+                date_to: new Date(),
+              },
+            ],
+    },
+  });
+
+  const jobFields = useFieldArray({
+    control: form.control,
+    name: "work",
+  });
+
+  const onSubmit = (data: TCWork) => {
+    setBtnDisabled(true);
+    // const work = data.work.map((w) => {
+    //   let inputDate = parse(w.date_from, "EEE MMM dd yyyy", new Date());
+    //   const date_from = format(inputDate, "yyyy-MM-dd");
+    //   inputDate = parse("Tue Sep 12 2023", "EEE MMM dd yyyy", new Date());
+    //   const date_from = format(inputDate, "yyyy-MM-dd");
+    //   return {
+    //     ...w,
+    //     date_from,
+    //     date_to,
+    //   };
+    // });
+    updateExperience(data);
+  };
+  const { mutate: updateExperience } = useMutation(
+    (payload: TCWork) =>
+      toast.promise(axios.patch("/api/user/information/work-exp", payload), {
+        pending: "Updating User!",
+        success: "Updated successfully!",
+        error: "Error updating, please try again later",
+      }),
+    {
+      onSuccess: () => {
+        setBtnDisabled(false);
+        queryClient.invalidateQueries(["userList"]);
+      },
+      onError: (error) => {
+        setBtnDisabled(false);
+        console.log(error);
+      },
+    }
+  );
+  console.log(form.formState.errors);
+  return (
+    <Form {...form}>
+      <form className="mx-12" onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="">
+          <div className="space-y-2 ">
+            {jobFields.fields.map((field, index) => {
+              return (
+                <div key={field.id} className="grid grid-cols-6 gap-6">
+                  <div className="col-span-5 m-4 flex items-center justify-center gap-4 text-primary text-lg underline">
+                    <p>Job Experience {index + 1}</p>
+                  </div>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button className="p-1" type="button">
+                        <MinusCircleIcon
+                          className="text-destructive"
+                          size={20}
+                        />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>
+                          Are you sure you want to discard your inputs?
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="flex items-center justify-center gap-3">
+                        <Button
+                          className=" flex items-center justify-center  "
+                          variant="destructive"
+                          onClick={() => jobFields.remove(index)}
+                        >
+                          Discard
+                        </Button>
+                        <DialogPrimitive.Close>
+                          <Button className=" flex items-center justify-center  ">
+                            Cancel
+                          </Button>
+                        </DialogPrimitive.Close>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <div className="md:col-span-3 col-span-full items-center justify-center ">
+                    <FormField
+                      control={form.control}
+                      name={`work.${index}.company`}
+                      render={({ field }) => (
+                        <FormItem className="w-full">
+                          <FormLabel>Company Name</FormLabel>
+                          <FormControl>
+                            <Input type="text" {...field} placeholder="" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="md:col-span-3 col-span-full  items-center justify-center ">
+                    <FormField
+                      control={form.control}
+                      name={`work.${index}.position`}
+                      render={({ field }) => (
+                        <FormItem className="w-full">
+                          <FormLabel>Position</FormLabel>
+                          <FormControl>
+                            <Input type="text" {...field} placeholder="" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="md:col-span-3 col-span-full flex items-center justify-center">
+                    <FormField
+                      control={form.control}
+                      name={`work.${index}.responsibilities`}
+                      render={({ field }) => (
+                        <FormItem className="w-full">
+                          <FormLabel>Responsibilities</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              value={field.value ?? ""}
+                              onChange={(event) => {
+                                form.setValue(
+                                  `work.${index}.responsibilities`,
+                                  event.target.value
+                                );
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="md:col-span-1 col-span-full flex items-center justify-center">
+                    <FormItem className="w-full">
+                      <FormLabel>Date From</FormLabel>
+                      <FormControl>
+                        <DatePicker
+                          sx={{ width: "100%" }}
+                          value={field.date_from}
+                          onChange={(newValue) => {
+                            form.setValue(`work.${index}.date_from`, newValue!);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  </div>
+                  <div className="md:col-span-1 col-span-full flex items-center justify-center">
+                    <FormItem className="w-full">
+                      <FormLabel>Date To</FormLabel>
+                      <FormControl>
+                        <DatePicker
+                          sx={{ w: "100%" }}
+                          value={field.date_to}
+                          onChange={(newValue) => {
+                            form.setValue(`work.${index}.date_to`, newValue!);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className=" flex flex-col items-center justify-center mt-2">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() =>
+              jobFields.append({
+                company: "",
+                position: "",
+                responsibilities: "",
+                date_from: new Date(),
+                date_to: new Date(),
+              })
+            }
+          >
+            Add New
+          </Button>
+        </div>
+        <Button disabled={btnDisabled} className="w-full mt-6" type="submit">
+          Save
+        </Button>
+      </form>
+    </Form>
+  );
+};
+export default CvExperienceForm;

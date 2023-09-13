@@ -1,0 +1,354 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  TBirthCertificate,
+  TCBirthCertificate,
+} from "@/types/birthCertificate";
+import { ZCBirthCertificate } from "@/validators/birthCertificate";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { DatePicker } from "@mui/x-date-pickers";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+
+const BirthCertificate = ({
+  birthCertificateData,
+}: {
+  birthCertificateData: TBirthCertificate;
+}) => {
+  console.log(birthCertificateData);
+  const [btnDisabled, setBtnDisabled] = useState(false);
+  //   const [doi, setdoi] = useState<Date | undefined>();
+  //   const [dor, setdor] = useState<Date | undefined>();
+
+  const form = useForm<TCBirthCertificate>({
+    resolver: zodResolver(ZCBirthCertificate),
+    defaultValues: {
+      number: birthCertificateData?.number || "",
+      book_no: birthCertificateData?.book_no || "",
+      register_address: birthCertificateData?.register_address || "",
+      doi: birthCertificateData?.doi
+        ? new Date(birthCertificateData.doi)
+        : new Date(),
+      dor: birthCertificateData?.dor
+        ? new Date(birthCertificateData.dor)
+        : new Date(),
+      address: birthCertificateData?.address || "",
+      dob_word: birthCertificateData?.dob_word || "",
+      birth_place: birthCertificateData?.birth_place || "",
+      order_of_child: birthCertificateData?.order_of_child || 0,
+      information: {
+        father_nationality:
+          birthCertificateData?.information?.father_nationality || "",
+        father_nid_no: birthCertificateData?.information?.father_nid_no || "",
+        father_birth_certificate:
+          birthCertificateData?.information?.father_birth_certificate || "",
+        mother_nationality:
+          birthCertificateData?.information?.mother_nationality || "",
+        mother_nid_no: birthCertificateData?.information?.mother_nid_no || "",
+        mother_birth_certificate:
+          birthCertificateData?.information?.mother_birth_certificate || "",
+      },
+    },
+  });
+
+  const queryClient = useQueryClient();
+  const { mutate: birthCertificateUpdate } = useMutation(
+    (payload: TCBirthCertificate) =>
+      toast.promise(axios.patch(`/api/birth-certificate`, payload), {
+        pending: "Creating Birth Certificate!",
+        success: "User Birth Certificate created successfully!",
+        error: "Error creating, please try again later",
+      }),
+    {
+      onSuccess: () => {
+        setBtnDisabled(false);
+        queryClient.invalidateQueries(["userList"]);
+      },
+      onError: (error) => {
+        setBtnDisabled(false);
+        console.log(error);
+      },
+    }
+  );
+  console.log(form.formState.errors);
+  return (
+    <div>
+      <div>
+        <h2 className="text-center my-4 text-primary text-2xl font-semibold">
+          User BirthCertificate:
+        </h2>
+      </div>
+      <Form {...form}>
+        <form
+          className="mx-12"
+          onSubmit={form.handleSubmit((values) => {
+            let payload = values;
+            setBtnDisabled(true);
+            payload = {
+              ...payload,
+            };
+            birthCertificateUpdate(payload);
+          })}
+        >
+          <div className="grid sm:grid-rows-1 md:grid-cols-3 md:gap-x-6">
+            <div className="col-span-1">
+              <FormField
+                control={form.control}
+                name="book_no"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Book No.</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="register_address"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Issued Registration office address</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="number"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Birth Certificate Number</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormItem className="w-full">
+                <FormLabel>Date of Issue</FormLabel>
+                <FormControl>
+                  <DatePicker
+                    sx={{ width: "100%" }}
+                    value={form.getValues("doi")}
+                    onChange={(newValue) => {
+                      form.setValue(`doi`, newValue!);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormItem className="w-full">
+                <FormLabel>Date of Registration</FormLabel>
+                <FormControl>
+                  <DatePicker
+                    sx={{ width: "100%" }}
+                    value={form.getValues("dor")}
+                    onChange={(newValue) => {
+                      form.setValue(`dor`, newValue!);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Permanent Address</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="dob_word"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Birth-date In word</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="birth_place"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Birth Place</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="order_of_child"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Order of Child</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        placeholder=""
+                        onChange={(event) => {
+                          const parsedValue = parseInt(event.target.value);
+                          if (!isNaN(parsedValue)) {
+                            field.onChange(parsedValue);
+                          } else {
+                            field.onChange(0);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="information.father_birth_certificate"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Father Birth Certificate</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="information.father_nationality"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Father Nationality</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="information.father_nid_no"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Father NID No</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="information.mother_birth_certificate"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Mother Birth Certificate</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="information.mother_nationality"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Mother Nationality</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="col-span-1  items-center justify-center ">
+              <FormField
+                control={form.control}
+                name="information.mother_nid_no"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Mother NID No</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} placeholder="" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+          <Button disabled={btnDisabled} className="w-full mt-6" type="submit">
+            Save
+          </Button>
+        </form>
+      </Form>
+    </div>
+  );
+};
+
+export default BirthCertificate;

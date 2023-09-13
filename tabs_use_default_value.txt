@@ -1,0 +1,132 @@
+"use client";
+import CVForm from "@/components/forms/cv";
+import CvActivities from "@/components/forms/cv/activities";
+import CvAwards from "@/components/forms/cv/awards";
+import CvEducationForm from "@/components/forms/cv/education";
+import CvExperienceForm from "@/components/forms/cv/experience";
+import CvPresentation from "@/components/forms/cv/presentation";
+import CvReferenceForm from "@/components/forms/cv/reference";
+import CvResearch from "@/components/forms/cv/research";
+import CvSeminar from "@/components/forms/cv/seminar";
+import CvSkills from "@/components/forms/cv/skills";
+import CvSummary from "@/components/forms/cv/summary";
+import CustomLoader from "@/components/ui/loader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TUserInformation } from "@/types/userInfo";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { usePathname } from "next/navigation";
+
+const ClientCv = () => {
+  const pathName = usePathname();
+  console.log(pathName);
+
+  const { data: userInformation, isLoading: userInformationLoading } = useQuery(
+    {
+      queryFn: async () => {
+        const res = await axios.get("/api/user/information");
+
+        const data = res.data as TUserInformation;
+        const updatedData = {
+          ...data,
+          work_experience: data.work_experience.map((work) => {
+            return {
+              ...work,
+              date_from: new Date(work.date_from),
+              date_to: new Date(work.date_to),
+            };
+          }),
+        };
+        return updatedData;
+      },
+      queryKey: ["userInformation"],
+      staleTime: Infinity,
+      retry: 2,
+      refetchInterval: 600000,
+    }
+  );
+  // if (userInformationLoading) return <CustomLoader />;
+
+  return (
+    <main>
+      <Tabs defaultValue="education" className="pt-2">
+        <div className="">
+          <TabsList className="w-full sm:gap-1 xl:gap-2  bg-primary text-primary-foreground ">
+            <TabsTrigger value="education">Education</TabsTrigger>
+            <TabsTrigger value="experience">Experience</TabsTrigger>
+            <TabsTrigger value="skills">Skills</TabsTrigger>
+            <TabsTrigger value="activities">
+              Extra curriculur Activities
+            </TabsTrigger>
+            <TabsTrigger value="awards">Awards</TabsTrigger>
+            <TabsTrigger value="research">Research</TabsTrigger>
+            <TabsTrigger value="presentation">Presentation</TabsTrigger>
+            <TabsTrigger value="seminar">Seminar</TabsTrigger>
+            <TabsTrigger value="reference">Reference</TabsTrigger>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="education">
+          {userInformation?.academic && (
+            <CvEducationForm educationData={userInformation.academic} />
+          )}
+        </TabsContent>
+        <TabsContent value="experience">
+          {userInformation?.work_experience && (
+            <CvExperienceForm
+              experienceData={userInformation.work_experience}
+            />
+          )}
+        </TabsContent>
+        <TabsContent value="skills">
+          {userInformation?.skills && (
+            <CvSkills skillsData={userInformation.skills} />
+          )}
+        </TabsContent>
+        <TabsContent value="activities">
+          {userInformation?.extra_curriculum_activities && (
+            <CvActivities
+              activitiesData={userInformation.extra_curriculum_activities}
+            />
+          )}
+        </TabsContent>
+        <TabsContent value="awards">
+          {userInformation?.awards && (
+            <CvAwards awardsData={userInformation.awards} />
+          )}
+        </TabsContent>
+        <TabsContent value="research">
+          {userInformation?.research && (
+            <CvResearch researchData={userInformation.research} />
+          )}
+        </TabsContent>
+        <TabsContent value="presentation">
+          {userInformation?.presentation && (
+            <CvPresentation presentationData={userInformation.presentation} />
+          )}
+        </TabsContent>
+        <TabsContent value="seminar">
+          {userInformation?.seminar && (
+            <CvSeminar seminarData={userInformation.seminar} />
+          )}
+        </TabsContent>
+        <TabsContent value="reference">
+          {userInformation?.user?.cv_reference && (
+            <CvReferenceForm
+              referenceData={userInformation.user.cv_reference}
+            />
+          )}
+        </TabsContent>
+        <TabsContent value="summary">
+          {userInformation?.profile_summary && (
+            <CvSummary summaryData={userInformation.profile_summary} />
+          )}
+        </TabsContent>
+      </Tabs>
+      {/* <CVForm userInformation={userInformation} /> */}
+    </main>
+  );
+};
+
+export default ClientCv;

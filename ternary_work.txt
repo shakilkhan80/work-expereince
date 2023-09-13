@@ -1,0 +1,19 @@
+//this is ternary operation
+                    text: `${
+                      data.title === "DEBATE"
+                        ? "DEBATE COMPETITION CERTIFICATE"
+                        : data.title === "PARTICIPATION"
+                        ? "CERTIFICATE OF PARTICIPATION"
+                        : "CERTIFICATE OF APPRECIATION"
+                    }`
+
+//this is ternary operation
+                        text: ` ${
+                          data.position === 1
+                            ? `1st`
+                            : data.position === 2
+                            ? "2nd"
+                            : data.position === 3
+                            ? "3rd"
+                            : `${data.position}th`
+                        }`

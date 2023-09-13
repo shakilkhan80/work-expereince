@@ -1,0 +1,204 @@
+import { CourseCertificateData, TClientCourse } from "@/types/admin";
+import {
+  AlignmentType,
+  FrameAnchorType,
+  HorizontalPositionAlign,
+  ImageRun,
+  Paragraph,
+  PatchType,
+  TextRun,
+  VerticalPositionAlign,
+  patchDocument,
+} from "docx";
+import { saveAs } from "file-saver";
+
+export const downloadCertificate = (
+  data: CourseCertificateData,
+  client: TClientCourse
+) => {
+  try {
+    const request = new XMLHttpRequest();
+    request.open("GET", data.logo!, true);
+    request.responseType = "arraybuffer";
+    request.onload = function () {
+      const logo_buffer = request.response;
+      request.open("GET", data.signature!, true);
+      request.responseType = "arraybuffer";
+      request.onload = function () {
+        const signature_buffer = request.response;
+        request.open("GET", "/docx/debate_template.docx", true);
+        request.responseType = "arraybuffer";
+        request.onload = function () {
+          const arrayBuffer = request.response;
+          patchDocument(arrayBuffer, {
+            patches: {
+              page_title: {
+                type: PatchType.PARAGRAPH,
+                children: [
+                  new TextRun({
+                    text: `3.1 ${client.information?.first_name} ${client.information?.last_name}'s Course Certificate`,
+                    bold: true,
+                    size: 24,
+                  }),
+                ],
+              },
+              logo: {
+                type: PatchType.PARAGRAPH,
+                children: [
+                  logo_buffer
+                    ? new ImageRun({
+                        data: logo_buffer,
+                        transformation: {
+                          width: 60,
+                          height: 60,
+                        },
+                      })
+                    : new TextRun({ text: "logo not found" }),
+                ],
+              },
+              institute: {
+                type: PatchType.PARAGRAPH,
+                children: [
+                  new TextRun({
+                    text: `${data.institute}`,
+                    bold: true,
+                    size: 36,
+                  }),
+                ],
+              },
+              title: {
+                type: PatchType.PARAGRAPH,
+
+                children: [
+                  new TextRun({
+			//this is ternary operation
+                    text: `${
+                      data.title === "DEBATE"
+                        ? "DEBATE COMPETITION CERTIFICATE"
+                        : data.title === "PARTICIPATION"
+                        ? "CERTIFICATE OF PARTICIPATION"
+                        : "CERTIFICATE OF APPRECIATION"
+                    }`,
+                    size: 28,
+                  }),
+                ],
+              },
+              certificate_body: {
+                type: PatchType.DOCUMENT,
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    frame: {
+                      position: {
+                        x: 1000,
+                        y: 4000,
+                      },
+                      width: 7000,
+                      height: 300,
+                      anchor: {
+                        horizontal: FrameAnchorType.MARGIN,
+                        vertical: FrameAnchorType.MARGIN,
+                      },
+                    },
+                    children: [
+                      new TextRun({
+                        text: `This is to certify that`,
+                        size: 28,
+                      }),
+                      new TextRun({
+                        text: `  ${client.information.first_name?.toUpperCase()} ${client.information.last_name?.toUpperCase()}`,
+                        size: 32,
+                        bold: true,
+                      }),
+                      new TextRun({
+                        text: ` has secured `,
+                        size: 28,
+                      }),
+                      new TextRun({
+                        // TODO: conditional
+			//this is ternary operation
+                        text: ` ${
+                          data.position === 1
+                            ? `1st`
+                            : data.position === 2
+                            ? "2nd"
+                            : data.position === 3
+                            ? "3rd"
+                            : `${data.position}th`
+                        }`,
+                        size: 28,
+                        bold: true,
+                      }),
+                      new TextRun({
+                        text: `   in the `,
+                        size: 28,
+                      }),
+                      new TextRun({
+                        text: `Debate(English) `,
+                        size: 28,
+                        bold: true,
+                      }),
+                      new TextRun({
+                        text: `Competition of the Annual Student of the year Competition `,
+                        size: 28,
+                      }),
+                      new TextRun({
+                        text: ` ${data.year}.`,
+                        size: 28,
+                        bold: true,
+                      }),
+                    ],
+                  }),
+                ],
+              },
+              signature: {
+                type: PatchType.PARAGRAPH,
+                children: [
+                  signature_buffer
+                    ? new ImageRun({
+                        data: signature_buffer,
+                        transformation: {
+                          width: 100,
+                          height: 40,
+                        },
+                      })
+                    : new TextRun({ text: "signature not found" }),
+                ],
+              },
+              issuer_position: {
+                type: PatchType.PARAGRAPH,
+                children: [
+                  new TextRun({
+                    text: `${data.issuer_position}`,
+                  }),
+                ],
+              },
+              issuer_name: {
+                type: PatchType.PARAGRAPH,
+                children: [
+                  new TextRun({
+                    text: `${data.issuer_name}`,
+                  }),
+                ],
+              },
+            },
+          }).then((doc) => {
+            const blob = new Blob([doc], {
+              type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            });
+            saveAs(
+              blob,
+              `NEER-${client.system_id ?? "user"}-certificate".docx`
+            );
+          });
+        };
+        request.send();
+      };
+      request.send();
+    };
+    request.send();
+  } catch (error) {
+    console.log(error);
+  }
+  return "could not generate";
+};
