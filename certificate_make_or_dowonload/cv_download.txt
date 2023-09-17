@@ -1,0 +1,111 @@
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { Separator } from "../../ui/separator";
+import CustomDataGrid from "../../shared/customDataGrid";
+import { GridActionsCellItem, GridColDef } from "@mui/x-data-grid";
+import { Tooltip } from "@mui/material";
+import { DownloadIcon } from "lucide-react";
+import { useState } from "react";
+import CVDownload from "./cvDownload";
+import { downloadCV } from "@/lib/generate-docx/cv";
+import { TCvData, TUserInformation } from "@/types/userInfo";
+
+const AdminCV = () => {
+  const [download, setDownload] = useState<TCvData | undefined>(
+    undefined
+  );
+  const { data, isLoading, isError } = useQuery({
+    queryFn: async () => {
+      const res = await axios.get("/api/admin/cv");
+      const data: TCvData[] = res.data;
+      return data;
+    },
+    queryKey: ["cvList"],
+    staleTime: Infinity,
+    retry: 2,
+    refetchInterval: 600000,
+  });
+  if (isError)
+    return (
+      <div className="flex justify-center items-center">
+        <p className="bg-warning px-6 py-2 rounded-lg">No Data found...</p>
+      </div>
+    );
+  const columns: GridColDef[] = [
+    {
+      field: "system_id",
+      headerName: "ID",
+      width: 100,
+      renderCell: ({row,}: {row: TCvData & { system_id: string };}) => {
+        return <>NEER-{row.system_id}</>;
+      },
+    },
+    {
+      field: "first_name",
+      headerName: "First Name",
+      width: 150,
+    },
+    {
+      field: "last_name",
+      headerName: "Last Name",
+      width: 150,
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      width: 300,
+      renderCell: ({ row }: { row: TCvData }) => {
+        return <>{row.user?.email}</>;
+      },
+    },
+    { field: "phone", headerName: "Phone", width: 150 },
+    {
+      field: "cv",
+      type: "actions",
+      headerName: "CV",
+      width: 250,
+      cellClassName: "actions",
+      getActions: ({ row }: { row: TCvData }) => {
+        return [
+          <Tooltip title="Download CV" key={row.id}>
+            <GridActionsCellItem
+              label="Download CV"
+              icon={<DownloadIcon className="text-primary" />}
+              onClick={() => {
+                setDownload(row);
+                // downloadCV(row);
+              }}
+            />
+          </Tooltip>,
+        ];
+      },
+    },
+  ];
+
+  const updatedList = data?.map((cvData) => {
+    return { ...cvData, system_id: cvData.user?.system_id };
+  });
+
+  return (
+    <>
+      <h1 className="text-3xl font-extrabold text-primary capitalize">
+        CV List
+      </h1>
+
+      <Separator className="mb-4 bg-gradient-to-r from-primary h-1 via-primary/50 to-popover" />
+      <CustomDataGrid
+        columns={columns}
+        rows={updatedList ?? []}
+        loading={isLoading}
+      />
+      {download && (
+        <div className="w-full overflow-auto">
+          <CVDownload cvData={download} setDownload={setDownload} />
+        </div>
+      )}
+    </>
+  );
+};
+
+export default AdminCV;

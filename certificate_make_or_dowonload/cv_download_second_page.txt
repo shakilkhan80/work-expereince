@@ -1,0 +1,250 @@
+import { Separator } from "@/components/ui/separator";
+import { downloadCVOld } from "@/lib/generate-docx/cv";
+import { getImg } from "@/lib/image";
+import { TCvData } from "@/types/userInfo";
+import { format } from "date-fns";
+import { useEffect, useRef, useState } from "react";
+
+const CVDownload = ({
+  cvData,
+  setDownload,
+}: {
+  cvData: TCvData;
+  setDownload: React.Dispatch<React.SetStateAction<TCvData | undefined>>;
+}) => {
+  const imageRef = useRef<HTMLDivElement>(null);
+  const [output, setOutput] = useState<string>("");
+  useEffect(() => {
+    const myFunc = async () => {
+      const imgData = await getImg(imageRef);
+      setOutput(imgData);
+    };
+    myFunc();
+  }, []);
+  if (output && cvData) {
+    downloadCVOld(output, `NEER-${cvData.user?.system_id}`);
+    setDownload(undefined);
+  }
+  const cvSkills = cvData.qualifications_accomplishments.filter(
+    (q) => q.field_of_acitvity === "skills"
+  );
+  const cvAwards = cvData.qualifications_accomplishments.filter(
+    (q) => q.field_of_acitvity === "awards"
+  );
+  const cvEca = cvData.qualifications_accomplishments.filter(
+    (q) => q.field_of_acitvity === "eca"
+  );
+  const cvSeminar = cvData.qualifications_accomplishments.filter(
+    (q) => q.field_of_acitvity === "seminar"
+  );
+  const cvPresentation = cvData.qualifications_accomplishments.filter(
+    (q) => q.field_of_acitvity === "presentation"
+  );
+
+  return (
+    <div
+      ref={imageRef}
+      className="border p-28 space-y-6 border-slate-400 w-[1651px] h-[2333px]"
+    >
+      {/* no-1 : full name */}
+      <div>
+        <h1 className="text-5xl font-extrabold text-cv uppercase">
+          {cvData.first_name + " " + cvData.last_name}
+        </h1>
+      </div>
+      <Separator className="bg-cv h-[0.15rem] mt-1" />
+
+      {/* no-2 : phone adress */}
+      <div className="flex justify-between">
+        <div>
+          <p className="text-3xl"> {cvData.phone}</p>
+        </div>
+        <div className="m-2">
+          <div>
+            <div className="flex m-2 text-2xl">
+              <div>{cvData.permanent_address},</div>
+              <div>{cvData.permanent_city}</div>
+            </div>
+          </div>
+          <div>
+            <div className="flex m-2 text-2xl">
+              <div>{cvData.permanent_upazila},</div>
+              <div>{cvData.permanent_district}-</div>
+              <div>{cvData.permanent_postal_code}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Separator className="bg-cv h-[0.15rem] mt-1" />
+
+      {/* no-3 : summaray */}
+      <div className="">
+        <h3 className="text-cv text-4xl capitalize font-semibold">
+          profile summary
+        </h3>
+        <p className="mt-4 text-2xl line-clamp-3">{cvData.profile_summary}</p>
+      </div>
+
+      {/* no-4 : Professional Skills */}
+      <div className="">
+        <div className="flex">
+          <h3 className="text-cv text-4xl capitalize font-semibold w-1/4">
+            professional skills
+          </h3>
+          <div className="w-3/4 flex items-end">
+            <div className="h-full flex w-full items-center">
+              <hr className="bg-cv h-[0.3rem] w-full" />
+            </div>
+          </div>
+        </div>
+        <ul className="mt-4 text-2xl grid grid-cols-2 gap-x-2">
+          {cvSkills.slice(0, 10).map((skill) => (
+            <li
+              className="before:w-3 gap-2 before:h-3 before:bg-cv mt-2 before:rounded-full before:mr-4 before:mt-1 line-clamp-1 before:inline-block overflow-hidden"
+              key={skill.id}
+            >
+              {skill.type_of_activity}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* no-5 : Education */}
+      <div className="">
+        <div className="flex">
+          <h3 className="text-cv text-4xl capitalize font-semibold w-1/6">
+            Education
+          </h3>
+          <div className="w-5/6 flex items-end">
+            <div className="h-full flex w-full items-center">
+              <hr className="bg-cv h-[0.3rem] w-full" />
+            </div>
+          </div>
+        </div>
+
+        {cvData.academic?.slice(0, 3).map((academic) => {
+          return (
+            <div key={academic.id} className="mt-6">
+              <div className="flex justify-between">
+                <p className="text-2xl uppercase font-semibold line-clamp-1">
+                  {academic.institution}
+                </p>
+
+                {academic.passed_year !== null ||
+                academic.start_year !== null ? (
+                  <div className="flex text-cv text-xl">
+                    {academic.start_year !== null && (
+                      <p>{format(new Date(academic.start_year), "yyyy")}-</p>
+                    )}
+                    {academic.passed_year !== null && (
+                      <p>-{format(new Date(academic.passed_year), "yyyy")}</p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              <p className="text-2xl capitalize line-clamp-1">
+                {academic.course_name}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* no-6 extra curricular */}
+
+      {cvEca.length !== 0 && (
+        <>
+          <div className="flex">
+            <h3 className="text-cv text-4xl capitalize font-semibold mt-6 w-6/12">
+              Extra Curricular Activities
+            </h3>
+            <div className="w-4/5 flex items-end">
+              <div className="h-2/3 flex w-full items-center">
+                <hr className="bg-cv h-[0.3rem] w-full" />
+              </div>
+            </div>
+          </div>
+          <ul className="">
+            <li className="flex text-2xl gap-10 mt-4">
+              {cvEca.map((extracurricular) => {
+                return (
+                  <div key={extracurricular.id}>
+                    <span className="before:w-3 before:h-3 before:bg-cv before:rounded-full before:mr-4 before:mt-1 before:inline-block line-clamp-6">
+                      {extracurricular.type_of_activity}
+                    </span>
+                  </div>
+                );
+              })}
+            </li>
+          </ul>
+        </>
+      )}
+      {/* no-7 seminar */}
+
+      {cvSeminar.length !== 0 && (
+        <>
+          <div className="flex">
+            <h3 className="text-cv text-4xl capitalize font-semibold mt-6 w-1/5">
+              Seminar
+            </h3>
+            <div className="w-4/5 flex items-end">
+              <div className="h-2/3 flex w-full items-center">
+                <hr className="bg-cv h-[0.3rem] w-full" />
+              </div>
+            </div>
+          </div>
+
+          {cvSeminar.map((seminar) => {
+            return (
+              <div key={seminar.id}>
+                <ul>
+                  <li className="flex text-2xl gap-3 mt-4">
+                    <span className="before:w-3 before:h-3  before:bg-cv before:rounded-full before:mr-4 before:mt-1 before:inline-block line-clamp-1">
+                      {seminar.type_of_activity}
+                    </span>
+                    <span className="font-medium text-teal-600 italic">
+                      {seminar.year}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* no-8 awards */}
+      {cvAwards.length !== 0 && (
+        <>
+          <div className="flex">
+            <h3 className="text-cv text-4xl capitalize font-semibold mt-6 w-1/5">
+              Awards
+            </h3>
+            <div className="w-4/5 flex items-end">
+              <div className="h-2/3 flex w-full items-center">
+                <hr className="bg-cv h-[0.3rem] w-full" />
+              </div>
+            </div>
+          </div>
+          {cvAwards.map((award) => {
+            return (
+              <div key={award.id}>
+                <ul className="">
+                  <li className="flex text-2xl gap-2 mt-4">
+                    <span className="before:w-3 before:h-3 before:bg-cv before:rounded-full before:mr-4 before:mt-1 before:inline-block line-clamp-1">
+                      {award.type_of_activity}
+                    </span>
+                    <span className="font-bold">{award.year}</span>
+                    <span>{award.institution}</span>
+                  </li>
+                </ul>
+              </div>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default CVDownload;

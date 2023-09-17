@@ -1,0 +1,23 @@
+"use client";
+import BirthCertificateList from "@/components/admin/bc/birthCertificate";
+import CustomLoader from "@/components/ui/loader";
+import { useUserContext } from "@/contexts/userContext";
+import { redirect } from "next/navigation";
+
+const BirthCertificatePage = () => {
+
+  const user = useUserContext();
+  if (user.status === "UNAUTHENTICATED") {
+    return redirect("/login");
+  }
+  if (user.status === "LOADING") {
+    return <CustomLoader />;
+  }
+  if(user.status === 'AUTHENTICATED' && user.role !== 'ADMIN'){
+    return redirect("/dashboard");
+  }
+
+  return <BirthCertificateList />;
+};
+
+export default BirthCertificatePage;

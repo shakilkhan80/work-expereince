@@ -1,0 +1,266 @@
+import { TBirthCertificateDetails } from "@/types/birthCertificate";
+import { format } from "date-fns";
+import { PatchType, TextRun, patchDocument } from "docx";
+import { saveAs } from "file-saver";
+
+export const downloadbirthcertificate = (
+  birthData: TBirthCertificateDetails
+) => {
+  console.log(birthData);
+
+  try {
+    const full_name =
+      birthData.information.first_name ??
+      "" + " " + birthData.information.last_name ??
+      "";
+    const address_link = birthData.information;
+    const full_address =
+      address_link.permanent_upazila ??
+      "" + address_link.permanent_district ??
+      "" + address_link.permanent_country ??
+      "";
+    const request = new XMLHttpRequest();
+
+    request.open("GET", "/docx/birth_certificate.docx", true);
+    request.responseType = "arraybuffer";
+    request.onload = function () {
+      const arrayBuffer = request.response;
+
+      patchDocument(arrayBuffer, {
+        patches: {
+          // no-1 Register no
+          book_no: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.book_no ?? "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-2 Issued registration office address
+          register_address: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.register_address || "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-3 Date of issue
+          doi: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.doi
+                  ? format(new Date(birthData.doi), "dd/MM/yyyy")
+                  : "",
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-4 Date of registration
+          dor: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.dor
+                  ? format(new Date(birthData.dor), "dd/MM/yyyy")
+                  : "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-5 Birth certificate number
+          number: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.number || "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-6 Name
+          full_name: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: full_name,
+                size: 20,
+              }),
+            ],
+          },
+          // no-7 sex
+          gender: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.gender || "",
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-8 Order of child
+          order_of_child: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: `${birthData.order_of_child || 0}`,
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-9 Date of birth in number
+          dob: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.dob
+                  ? format(new Date(birthData.information.dob), "dd/MM/yyyy")
+                  : "",
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-10 Date of birth in word
+          dob_word: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.dob_word || "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-11 Place of birth
+          birth_place: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.birth_place || "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-12 Permanent address
+
+          full_permanent_address: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: full_address || "",
+                size: 20,
+              }),
+            ],
+          },
+          // no-13 Father’s name
+          father_name: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.father_name || "",
+
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-14 Father’s nationality
+          father_nationality: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.father_nationality || "",
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-15 Father’s Nid no or Fathers Birth certificate
+          father_nid_or_birth_no: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text:
+                  birthData.information.father_nid_no ||
+                  birthData.information.mother_birth_certificate ||
+                  "",
+
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-16 Mother’s name
+          mother_name: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.mother_name || "",
+                bold: true,
+                size: 20,
+              }),
+            ],
+          },
+          // no-17 Mother’s nationality
+          mother_nationality: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.mother_nationality || "",
+                size: 20,
+              }),
+            ],
+          },
+
+          // no-18 Mother’s Nid no or Fathers Birth certificate
+          mother_nid_birth: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text:
+                  birthData.information.mother_nid_no ||
+                  birthData.information.mother_birth_certificate ||
+                  "",
+
+                size: 20,
+              }),
+            ],
+          },
+          mother_nid_birth_certificate_name: {
+            type: PatchType.PARAGRAPH,
+            children: [
+              new TextRun({
+                text: birthData.information.mother_nid_no
+                  ? "Mother's Nid Number"
+                  : "Mother's Birth Certificate Number",
+                size: 24,
+              }),
+            ],
+          },
+        },
+      }).then((doc) => {
+        const blob = new Blob([doc], {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        });
+        saveAs(
+          blob,
+          `NEER-${
+            birthData.information.user?.system_id + " birthcertificate"
+          }.docx`
+        );
+      });
+    };
+    request.send();
+  } catch (error) {
+    console.log(error);
+  }
+
+  return "could not generate";
+};

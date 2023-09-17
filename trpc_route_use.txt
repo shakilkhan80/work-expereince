@@ -1,0 +1,181 @@
+"use client";
+import CustomDataGrid from "@/components/shared/customDataGrid";
+import CustomModal from "@/components/shared/customModal";
+import { Button } from "@/components/ui/button";
+import CustomLoader from "@/components/ui/loader";
+import { Separator } from "@/components/ui/separator";
+import { useUserContext } from "@/contexts/userContext";
+import { api } from "@/trpc/client";
+import { TQnA } from "@/types/organization";
+import { TUniversity } from "@/types/university";
+import { Tooltip } from "@mui/material";
+import { GridActionsCellItem, GridColDef } from "@mui/x-data-grid";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { DeleteIcon, EditIcon, PlusCircleIcon } from "lucide-react";
+import { redirect } from "next/navigation";
+import { useState } from "react";
+import AddUser from "./create";
+import UniversityCreate from "./update";
+
+const UniversitySOP = () => {
+  const user = useUserContext();
+
+  const [createUniversity, setCreateUniversity] = useState(false);
+
+  const [selected, setSelected] = useState<TUniversity | undefined>(undefined);
+
+  // const { data: universityList, isLoading: universityListLoading } = useQuery({
+  //   queryFn: async () => {
+  //     const res = await axios.get("/api/university");
+  //     const data = res.data as TUniversity[];
+  //     return data;
+  //   },
+  //   queryKey: ["userList", "universityList"],
+  //   staleTime: Infinity,
+  //   retry: 2,
+  //   refetchInterval: 600000,
+  // });
+
+  const { data: universityList2, isLoading: universityListLoading2 } =
+    api.university.getOwnUniversityList.useQuery();
+  // console.log(universityList);
+  console.log(universityList2);
+
+  const { data: questionData, isLoading: questionLoading } = useQuery({
+    queryFn: async () => {
+      const res = await axios.get("/api/question?question=university");
+      return res.data as TQnA[];
+    },
+    queryKey: ["questionField"],
+    staleTime: Infinity,
+    retry: 2,
+    refetchInterval: 600000,
+  });
+
+  if (user.status === "LOADING") return <CustomLoader />;
+  if (user.status === "UNAUTHENTICATED") redirect("/login");
+  if (user.status === "AUTHENTICATED" && user.role !== "CLIENT") {
+    return (
+      <p className="text-warning">you are not authorized to view this page</p>
+    );
+  }
+  const column: GridColDef[] = [
+    {
+      field: "system_id",
+      headerName: "ID",
+      width: 90,
+      renderCell: ({ row }: { row: TUniversity }) => {
+        return <p>NEER-{row.information.user.system_id}</p>;
+      },
+    },
+    { field: "email", headerName: "Email", width: 150 },
+
+    {
+      field: "university_name",
+      headerName: "University Name",
+      width: 200,
+      renderCell: ({ row }: { row: TUniversity }) => {
+        return <p>{row.university_name}</p>;
+      },
+    },
+    {
+      field: "program_name",
+      headerName: "Program Name",
+      width: 200,
+      renderCell: ({ row }: { row: TUniversity }) => {
+        return <p>{row.program_name}</p>;
+      },
+    },
+    {
+      field: "edit",
+      type: "actions",
+      headerName: "Action",
+      width: 150,
+      cellClassName: "actions",
+      getActions: ({ row }: { row: TUniversity }) => {
+        return [
+          <Tooltip
+            title="Edit Your University Details"
+            key={row.id}
+            placement="top"
+          >
+            <GridActionsCellItem
+              label="University"
+              icon={<EditIcon className="text-primary" size={26} />}
+              onClick={() => setSelected(row)}
+              color="inherit"
+            />
+          </Tooltip>,
+          <Tooltip
+            title="Delete Your University Details"
+            key={row.id}
+            placement="top"
+          >
+            <Button
+              className="h-8 w-8 p-1"
+              variant="destructive"
+              type="button"
+              onClick={() => setSelected(row)}
+            >
+              <DeleteIcon size={16} />
+            </Button>
+          </Tooltip>,
+        ];
+      },
+    },
+  ];
+  return (
+    <main>
+      <h1 className="text-3xl font-extrabold capitalize text-primary">
+        University Statement Of Purpose
+      </h1>
+      <Separator className="mb-4 h-1 bg-gradient-to-r from-primary via-primary/50 to-popover" />
+      <div className="flex w-full justify-end">
+        <Button
+          className="space-x-1"
+          onClick={() => {
+            setCreateUniversity(true);
+          }}
+        >
+          <PlusCircleIcon /> <span>Add</span>
+        </Button>
+      </div>
+      <CustomDataGrid
+        columns={column}
+        rows={universityList2 || []}
+        loading={universityListLoading2}
+      />
+
+      <CustomModal
+        open={createUniversity}
+        onClose={() => setCreateUniversity(false)}
+      >
+        {!!questionData && (
+          <AddUser
+            questionData={questionData}
+            setClose={() => setCreateUniversity(false)}
+          />
+        )}
+      </CustomModal>
+      <CustomModal open={!!selected} onClose={() => setSelected(undefined)}>
+        {!!selected && !!questionData && (
+          <UniversityCreate
+            questionData={questionData}
+            universityData={selected}
+            setClose={() => setSelected(undefined)}
+          />
+        )}
+      </CustomModal>
+      {/* {downloadCertificate && client && (
+        <DownloadCertificate
+          client={client}
+          data={downloadCertificate}
+          setClose={() => setDownloadCertificate(undefined)}
+        />
+      )} */}
+    </main>
+  );
+};
+
+export default UniversitySOP;

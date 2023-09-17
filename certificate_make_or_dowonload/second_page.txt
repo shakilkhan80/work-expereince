@@ -1,0 +1,51 @@
+"use client";
+
+import BirthCertificate from "@/components/forms/bc/BirthCertificate";
+import CustomLoader from "@/components/ui/loader";
+import { useUserContext } from "@/contexts/userContext";
+import { trpc } from "@/trpc/client";
+import { TBirthCertificate } from "@/types/birthCertificate";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { redirect } from "next/navigation";
+
+const ClientBC = () => {
+    
+//   const { data, isLoading } = trpc.getOwnUniversityData.useQuery();
+//   console.log(data !=="unauthorized" && data[0].details);
+
+  const { data: birthCertificate, isLoading: birthCertificateLoading } =
+    useQuery({
+      queryFn: async () => {
+        const res = await axios.get("/api/birth-certificate");
+
+        return res.data as TBirthCertificate;
+      },
+      queryKey: ["birthCertificate"],
+      staleTime: Infinity,
+      retry: 2,
+      refetchInterval: 600000,
+    });
+
+  console.log(birthCertificate);
+  const user = useUserContext();
+  if (user.status === "UNAUTHENTICATED") {
+    return redirect("/login");
+  }
+  if (user.status === "LOADING") {
+    return <CustomLoader />;
+  }
+  if (user.status === "AUTHENTICATED" && user.role !== "CLIENT") {
+    return redirect("/dashboard/birth-certificate");
+  }
+  if (birthCertificateLoading) return <CustomLoader />;
+
+  return (
+    <>
+      {birthCertificate && (
+        <BirthCertificate birthCertificateData={birthCertificate} />
+      )}
+    </>
+  );
+};
+export default ClientBC;
