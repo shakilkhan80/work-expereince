@@ -1,0 +1,49 @@
+{!!deleted && (
+        <Dialog open={!!deleted} onOpenChange={() => setDeleted(undefined)}>
+          <DialogContent className="w-[90vw] sm:w-[75vw] md:w-[35vw]">
+            <h1 className="capitalize">
+              are you sure you want delete this university?
+            </h1>
+            <div className="mt-4 flex justify-end gap-4">
+              <Button
+                onClick={() => {
+                  const id = toast.loading("Deleting University");
+                  uniVersityMutation.mutate(deleted, {
+                    onSuccess: (val) => {
+                      toast.update(id, {
+                        render: "Deleted University Details",
+                        type: "success",
+                        isLoading: false,
+                      });
+                      utils.university.getOwnUniversityList.invalidate();
+                      const timeOut = setTimeout(() => {
+                        toast.dismiss(id);
+                        setDeleted(undefined);
+                      }, 1500);
+                      return timeOut;
+                    },
+                    onError: (e) => {
+                      toast.update(id, {
+                        render: "Error!!! Something Went Wrong!",
+                        type: "error",
+                        isLoading: false,
+                      });
+                      const timeOut = setTimeout(() => {
+                        toast.dismiss(id);
+                        setDeleted(undefined);
+                      }, 1500);
+                      return timeOut;
+                    },
+                  });
+                }}
+                variant="destructive"
+              >
+                Delete
+              </Button>
+              <Button onClick={() => setDeleted(undefined)} variant="outline">
+                Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}

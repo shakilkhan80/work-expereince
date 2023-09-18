@@ -1,0 +1,23 @@
+  const [createUniversity, setCreateUniversity] = useState(false);
+  const [selected, setSelected] = useState<TUniversity | undefined>(undefined);
+
+<CustomModal
+        open={createUniversity}
+        onClose={() => setCreateUniversity(false)}
+      >
+        {!!questionData && (
+          <AddUser
+            questionData={questionData}
+            setClose={() => setCreateUniversity(false)}
+          />
+        )}
+      </CustomModal>
+<CustomModal open={!!selected} onClose={() => setSelected(undefined)}>
+        {!!selected && !!questionData && (
+          <UniversityCreate
+            questionData={questionData}
+            universityData={selected}
+            setClose={() => setSelected(undefined)}
+          />
+        )}
+      </CustomModal>

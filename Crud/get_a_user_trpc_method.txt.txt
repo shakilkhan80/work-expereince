@@ -1,0 +1,4 @@
+ const { data: universityList2, isLoading: universityListLoading2 } =
+    api.university.getOwnUniversityList.useQuery();
+  const { data: questionData, isLoading: questionDataLoading } =
+    api.question.getQuestions.useQuery("university");

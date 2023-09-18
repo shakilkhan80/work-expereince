@@ -1,0 +1,254 @@
+import { Button } from "@/components/ui/button";
+import { Dropzone } from "@/components/ui/dropzone";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/trpc/client";
+import { TUploadType } from "@/types/file";
+import { TQnA } from "@/types/organization";
+import { TUUniversity, TUniversity } from "@/types/university";
+import { ZUUniversity } from "@/validators/university";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+
+const UniversityCreate = ({
+  universityData,
+  questionData,
+  setClose,
+}: {
+  universityData: TUniversity;
+  questionData: TQnA[];
+  setClose: () => void;
+}) => {
+  console.log(universityData);
+
+  const [btnDisabled, setBtnDisabled] = useState(false);
+  const [image, setImage] = useState<TUploadType>({
+    status: "unsubmitted",
+  });
+
+  const qna =
+    universityData.qna.length > 0
+      ? universityData.qna.map((q) => {
+          return { ...q, answer: q.answer ?? undefined };
+        })
+      : [];
+  const form = useForm<TUUniversity>({
+    resolver: zodResolver(ZUUniversity),
+    defaultValues: {
+      id: universityData.id,
+      university_name: universityData?.university_name || "",
+      program_name: universityData?.program_name || "",
+      program_link: universityData?.program_link || "",
+      details: universityData?.details || "",
+      file: universityData?.file || "",
+      study_gap_details: universityData?.study_gap_details || "",
+      qna,
+    },
+  });
+  const questionField = useFieldArray({
+    control: form.control,
+    name: "qna",
+  });
+  const uniVersityMutation = api.university.updateUniversity.useMutation();
+  const utils = api.useContext();
+  return (
+    <Form {...form}>
+      <form
+        className="mx-12 space-y-4"
+        onSubmit={form.handleSubmit((values) => {
+          let payload = values;
+          setBtnDisabled(true);
+
+          if (image.status === "error") {
+            return toast.warn("error uploading nid front");
+          } else if (image.status === "success") {
+            payload = { ...payload, file: image.name };
+          }
+          const id = toast.loading("Updating University Details");
+          uniVersityMutation.mutate(payload, {
+            onSuccess: (val) => {
+              toast.update(id, {
+                render: "Updated University Details",
+                type: "success",
+                isLoading: false,
+              });
+              utils.university.getOwnUniversityList.invalidate();
+              const timeOut = setTimeout(() => {
+                toast.dismiss(id);
+                setClose();
+              }, 1500);
+              return timeOut;
+            },
+            onError: (e) => {
+              toast.update(id, {
+                render: "Error!!! Something Went Wrong!",
+                type: "error",
+                isLoading: false,
+              });
+              const timeOut = setTimeout(() => {
+                toast.dismiss(id);
+                setClose();
+              }, 1500);
+              return timeOut;
+            },
+          });
+        })}
+      >
+        <h1 className="mb-2 text-center text-xl font-semibold">
+          Add Your University Details Here
+        </h1>
+        <div className="grid grid-cols-6 gap-x-4">
+          <div className="col-span-3">
+            <FormField
+              control={form.control}
+              name="university_name"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>University Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      {...field}
+                      value={field.value || ""}
+                      placeholder="Enter your university name"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-3">
+            <FormField
+              control={form.control}
+              name="program_name"
+              render={({ field }) => (
+                <FormItem className="h-16">
+                  <FormLabel>Certificate Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      {...field}
+                      placeholder="Enter your program name"
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-3">
+            <FormField
+              control={form.control}
+              name="program_link"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Program Link</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      {...field}
+                      placeholder="Enter your program link"
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-3">
+            <FormField
+              control={form.control}
+              name="details"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>Details</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      {...field}
+                      placeholder="Details"
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-3">
+            <FormField
+              control={form.control}
+              name="study_gap_details"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>Study Gap</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      {...field}
+                      placeholder="How many study year gap you have"
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-3">
+            <label>Image</label>
+            <Dropzone setName={setImage} multiple={3} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4">
+          {questionField.fields.map((field, index) => (
+            <FormField
+              key={field.id}
+              control={form.control}
+              name={`qna.${index}.answer`}
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>{questionData[index]?.question || ""}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Type your message here."
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end space-x-2">
+          <Button type="submit">Update</Button>
+          <Button
+            disabled={btnDisabled}
+            variant="outline"
+            type="button"
+            onClick={() => setClose()}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+};
+
+export default UniversityCreate;
