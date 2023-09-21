@@ -1,0 +1,18 @@
+const queryClient = useQueryClient();
+  // const { mutate: userUpdate } = useMutation(
+  //   (payload: TUserRoleUpdate) =>
+  //     toast.promise(axios.patch(`/api/admin/user/${payload.id}`, payload), {
+  //       pending: "Updating User!",
+  //       success: "User Updated successfully!",
+  //       error: "Error updating, please try again later",
+  //     }),
+  //   {
+  //     onSuccess: () => {
+  //       setBtnDisabled(false);
+  //       queryClient.invalidateQueries(["userList"]);
+  //     },
+  //     onError: (error) => {
+  //       setBtnDisabled(false);
+  //     },
+  //   },
+  // );

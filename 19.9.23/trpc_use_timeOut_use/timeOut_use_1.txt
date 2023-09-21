@@ -1,0 +1,11 @@
+//option 1
+const timeOut = setTimeout(() => {
+                            toast.dismiss(toastID);
+                            setBtnDisabled(false);
+                          }, 1500);
+                          return timeOut;
+//Option 2
+const timeOut = setTimeout(() => {
+                        toast.dismiss(toastID);
+                      }, 1500);
+                      return () => clearTimeout(timeOut);

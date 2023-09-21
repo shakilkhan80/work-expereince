@@ -1,0 +1,16 @@
+const {
+    data: userList,
+    isLoading: userLoading,
+    isError: userError,
+  } = useQuery({
+    queryFn: async () => {
+      const res = await axios.get("/api/user");
+      return res.data as TUserApprove[];
+    },
+    queryKey: ["userList"],
+    staleTime: Infinity,
+    retry: 2,
+    refetchInterval: 600000,
+  });
+  console.log(userList);
+  console.log(userList2);

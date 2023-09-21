@@ -1,0 +1,337 @@
+import CustomDataGrid from "@/components/shared/customDataGrid";
+import CustomToggleIcon from "@/components/ui/toggleBtn";
+import { api } from "@/trpc/client";
+import { TClientPermission, TOneClientPermission } from "@/types/admin";
+import { Tooltip } from "@mui/material";
+import { GridActionsCellItem, type GridColDef } from "@mui/x-data-grid";
+import { useState } from "react";
+import { toast } from "react-toastify";
+import { z } from "zod";
+
+const ClientPermission = ({
+  data,
+  isLoading,
+}: {
+  data: TClientPermission;
+  isLoading: boolean;
+}) => {
+  const [btnDisabled, setBtnDisable] = useState(false);
+
+  const utils = api.useContext();
+  const clientPermissionMutation =
+    api.admin.permissionManagement.updateClientPermission.useMutation();
+
+  const handleTogglePermission = (row: TOneClientPermission, key: string) => {
+    setBtnDisable(true);
+    const toastID = toast.loading("Updating User!");
+    const validator = z.object({
+      id: z.string(),
+      [key]: z.boolean(),
+    });
+    const validatedData = validator.parse(row.client_permission);
+    clientPermissionMutation.mutate(
+      {
+        [key]: !validatedData[key],
+        id: row.client_permission?.id!,
+      },
+      {
+        onSuccess: (val) => {
+          toast.update(toastID, {
+            render: "Updated User!",
+            type: "success",
+            isLoading: false,
+          });
+          utils.permission.client.invalidate();
+          const timeOut = setTimeout(() => {
+            toast.dismiss(toastID);
+            setBtnDisable(false);
+          }, 1500);
+          return () => clearTimeout(timeOut);
+        },
+        onError: (e) => {
+          toast.update(toastID, {
+            render: e.message || "Something Went Wrong! Please try again later",
+            type: "error",
+            isLoading: false,
+          });
+          const timeOut = setTimeout(() => {
+            toast.dismiss(toastID);
+            setBtnDisable(false);
+          }, 1500);
+          return () => clearTimeout(timeOut);
+        },
+      },
+    );
+  };
+  const columns: GridColDef[] = [
+    {
+      field: "system_id",
+      headerName: "User ID",
+      width: 90,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return <p>NEER-{row.system_id}</p>;
+      },
+    },
+    { field: "email", headerName: "Email", width: 230 },
+    {
+      field: "affidavit",
+      headerName: "Affidavit",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.affidavit ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "affidavit");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: "sop",
+      headerName: "SOP",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.sop ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "sop");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: "tax_certificate",
+      headerName: "Tax Certificate",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.tax_certificate ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "tax_certificate");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: "notary",
+      headerName: "Notary",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.notary ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "notary");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: "fund_explaination",
+      headerName: "Fund Explaination",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.fund_explaination ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "fund_explaination");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: "ca_valuation",
+      headerName: "CA Valuation",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.ca_valuation ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "ca_valuation");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      field: "visa_application",
+      headerName: "Visa Application",
+      width: 130,
+      renderCell: ({ row }: { row: TOneClientPermission }) => {
+        return (
+          <Tooltip
+            title={btnDisabled ? "updating" : "toggle permission"}
+            placement="top"
+          >
+            <GridActionsCellItem
+              disabled={btnDisabled}
+              label="status"
+              icon={
+                row.client_permission?.visa_application ? (
+                  <CustomToggleIcon status="on" />
+                ) : (
+                  <CustomToggleIcon status="off" />
+                )
+              }
+              onClick={() => {
+                handleTogglePermission(row, "visa_application");
+              }}
+              color="inherit"
+            />
+          </Tooltip>
+        );
+      },
+    },
+  ];
+  if (data?.length === 0 && data[0].client_permission) {
+    Object.keys(data[0].client_permission).forEach((permission) => {
+      if (
+        permission === "id" ||
+        permission === "created_at" ||
+        permission === "updated_at"
+      )
+        return;
+      const headerName = `${permission[0].toUpperCase()}${permission.slice(
+        1,
+      )}`.replaceAll("_", " ");
+      columns.push({
+        field: permission,
+        headerName,
+        width: 130,
+        renderCell: ({ row }: { row: TClientPermission }) => {
+          return (
+            <Tooltip
+              title={btnDisabled ? "updating" : "toggle permission"}
+              placement="top"
+            >
+              <div></div>
+              {/* <GridActionsCellItem
+                disabled={btnDisabled}
+                label="status"
+                icon={
+                  row.client_permission && row.client_permission[permission] ? (
+                    <ToggleLeftIcon
+                      className="fill-primary/30 text-primary"
+                      size={36}
+                    />
+                  ) : (
+                    <ToggleRightIcon className="text-destructive" size={36} />
+                  )
+                }
+                onClick={() => {
+                  setBtnDisable(true);
+                  // clientUpdate({
+                  //   id: row.client_permission.id,
+                  //   [permission]:
+                  //     // @ts-ignore
+                  //     !row.client_permission[permission],
+                  // });
+                }}
+                color="inherit"
+              /> */}
+            </Tooltip>
+          );
+        },
+      });
+    });
+  }
+  return (
+    <CustomDataGrid loading={isLoading} rows={data || []} columns={columns} />
+  );
+};
+
+export default ClientPermission;

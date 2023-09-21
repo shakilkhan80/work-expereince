@@ -1,0 +1,217 @@
+"use client";
+import CustomDataGrid from "@/components/shared/customDataGrid";
+import CustomLoader from "@/components/ui/loader";
+import { Separator } from "@/components/ui/separator";
+import { useUserContext } from "@/contexts/userContext";
+import { api } from "@/trpc/client";
+import { TUserRoleUpdate } from "@/types/admin";
+import { TUserApprove } from "@/types/user";
+import { Tooltip } from "@mui/material";
+import FormControl from "@mui/material/FormControl";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import { GridActionsCellItem, type GridColDef } from "@mui/x-data-grid";
+import { ToggleLeftIcon, ToggleRightIcon } from "lucide-react";
+import { redirect } from "next/navigation";
+import { useState } from "react";
+import { toast } from "react-toastify";
+
+const UserManagement = () => {
+  const userUpdate = api.admin.userManagement.update.useMutation();
+  const utils = api.useContext();//use for refetch the page?
+  const user = useUserContext();
+  const [btnDisabled, setBtnDisabled] = useState<boolean>(false);
+  if (user.status === "UNAUTHENTICATED") {
+    redirect("/login");
+  }
+  const { data: userList, isLoading: userLoading } =
+    api.admin.userManagement.getList.useQuery();
+
+  if (user.status === "LOADING") {
+    return <CustomLoader />;
+  }
+  if (user.status === "AUTHENTICATED" && user.role !== "ADMIN") {
+    redirect("/");
+  }
+  const columns: GridColDef[] = [
+    {
+      field: "system_id",
+      headerName: "User ID",
+      width: 200,
+      renderCell: ({ row }: { row: TUserApprove }) => {
+        return <p>NEER-{row.system_id}</p>;
+      },
+    },
+    { field: "email", headerName: "Email", width: 450 },
+    {
+      field: "role",
+      type: "actions",
+      headerName: "Role Select",
+      width: 250,
+      cellClassName: "actions",
+      getActions: ({ row }: { row: TUserApprove }) => {
+        return [
+          <FormControl fullWidth key={row.id}>
+            <Select
+              sx={{ width: "250px" }}
+              labelId="demo-simple-select-label"
+              id="demo-simple-select"
+              value={row.role}
+              label="Role"
+              disabled={btnDisabled}
+              onChange={(e) => {
+                setBtnDisabled(true);
+                const toastID = toast.loading("Updating User...!");
+                userUpdate.mutate(
+                  {
+                    id: row.id,
+                    adminVerified: row.adminVerified,
+                    role: e.target.value as TUserRoleUpdate["role"],
+                  },
+                  {
+                    onSuccess: (val) => {
+                      toast.update(toastID, {
+                        render: "Updated User!!!",
+                        type: "success",
+                        isLoading: false,
+                      });
+                      utils.admin.userManagement.getList.invalidate();//define the path which will refetch?
+                      const timeOut = setTimeout(() => {
+                        toast.dismiss(toastID);
+                      }, 1500);
+                      return () => clearTimeout(timeOut);
+                    },
+                    onError: (e) => {
+                      toast.update(toastID, {
+                        render:
+                          e.message ||
+                          "Something Went Wrong! Please try again later",
+                        type: "error",
+                        isLoading: false,
+                      });
+                      const timeOut = setTimeout(() => {
+                        toast.dismiss(toastID);
+                      }, 1500);
+                      return () => clearTimeout(timeOut);
+                    },
+                  },
+                );
+              }}
+            >
+              <MenuItem value={"ADMIN"}>Admin</MenuItem>
+              <MenuItem value={"CLIENT"}>Client</MenuItem>
+              <MenuItem value={"EMPLOYEE"}>Employee</MenuItem>
+            </Select>
+          </FormControl>,
+        ];
+      },
+    },
+    {
+      field: "active",
+      type: "actions",
+      headerName: "Active",
+      width: 150,
+      cellClassName: "actions",
+      getActions: ({ row }: { row: TUserApprove }) => {
+        return [
+          <div
+            key={row.id}
+            className={`${row.id === user.id ? "hidden" : "block"}`}
+          >//uses for the admin active button don't show
+            {row.id === user.id ? (
+              <Tooltip title="not allowed" placement="top">
+                <GridActionsCellItem
+                  label="status"
+                  icon={
+                    <ToggleLeftIcon
+                      className="fill-primary/30 text-primary"
+                      size={36}
+                    />
+                  }
+                  onClick={() => {}}
+                  color="inherit"
+                />
+              </Tooltip>
+            ) : (
+              <Tooltip
+                title={btnDisabled ? "updating" : "toggle active status"}
+                placement="top"
+              >
+                <GridActionsCellItem
+                  disabled={btnDisabled}
+                  label="status"
+                  icon={
+                    row.adminVerified ? (
+                      <ToggleLeftIcon
+                        className="fill-primary/30 text-primary"
+                        size={36}
+                      />
+                    ) : (
+                      <ToggleRightIcon className="text-destructive" size={36} />
+                    )
+                  }
+                  onClick={() => {
+                    setBtnDisabled(true);
+                    const toastID = toast.loading("Updating User...!");
+                    userUpdate.mutate(
+                      {
+                        id: row.id,
+                        adminVerified: !row.adminVerified,
+                        role: row.role,
+                      },
+                      {
+                        onSuccess: (val) => {
+                          toast.update(toastID, {
+                            render: "Updated User!!!",
+                            type: "success",
+                            isLoading: false,
+                          });
+                          utils.university.getOwnUniversityList.invalidate();
+                          const timeOut = setTimeout(() => {
+                            toast.dismiss(toastID);
+                            setBtnDisabled(false);
+                          }, 1500);
+                          return timeOut;
+                        },
+                        onError: (e) => {
+                          toast.update(toastID, {
+                            render:
+                              e.message ||
+                              "Something Went Wrong! Please try again later",
+                            type: "error",
+                            isLoading: false,
+                          });
+                          const timeOut = setTimeout(() => {
+                            toast.dismiss(toastID);
+                            setBtnDisabled(false);
+                          }, 1500);
+                          return timeOut;
+                        },
+                      },
+                    );
+                  }}
+                  color="inherit"
+                />
+              </Tooltip>
+            )}
+          </div>,
+        ];
+      },
+    },
+  ];
+  return (
+    <main>
+      <h1 className="text-3xl font-extrabold capitalize text-primary">
+        All User Management
+      </h1>
+      <Separator className="mb-4 h-1 bg-gradient-to-r from-primary via-primary/50 to-popover" />
+      <CustomDataGrid
+        loading={userLoading}
+        rows={userList || []}
+        columns={columns}
+      />
+    </main>
+  );
+};
+
+export default UserManagement;

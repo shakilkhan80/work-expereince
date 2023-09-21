@@ -1,0 +1,28 @@
+const [
+    { data: employeeList, isLoading: employeeLoadind },
+    { data: clientList, isLoading: clientLoadind },
+  ] = useQueries({
+    queries: [
+      {
+        queryFn: async () => {
+          const res = await axios.get("/api/admin/user/employee/permission");
+          return res.data as TEmployeePermission[];
+        },
+        queryKey: ["userList", "employeeList"],
+        staleTime: Infinity,
+        retry: 2,
+        refetchInterval: 600000,
+      },
+      {
+        queryFn: async () => {
+          const res = await axios.get("/api/admin/user/client/permission");
+          return res.data as TClientPermission[];
+        },
+        queryKey: ["userList", "clientList"],
+        staleTime: Infinity,
+        retry: 2,
+        refetchInterval: 600000,
+      },
+    ],
+  });
+  console.log(employeeList, clientList);

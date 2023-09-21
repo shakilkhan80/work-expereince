@@ -1,0 +1,54 @@
+//step 1
+export type ArrayElement<ArrayType extends readonly unknown[]|undefined> = 
+  ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
+//step 2
+const { data: clientPermission } = api.permission.client.useQuery();
+export type TClientPermission = typeof clientPermission;
+export type TOneClientPermission = ArrayElement<TClientPermission>;
+//step 3
+import {
+  ZClientPermissionUpdate,
+  ZEmployeePermissionUpdate,
+} from "@/validators/admin";
+import { TRPCError } from "@trpc/server";
+import { adminProcedure } from "../../procedures";
+import { router } from "../../trpc";
+
+export const permissionManagementRouter = router({
+  updateEmployeePermission: adminProcedure
+    .input(ZEmployeePermissionUpdate)
+    .mutation(async (opts) => {
+      const { prisma } = opts.ctx;
+      try {
+        const { id, ...data } = opts.input;
+        await prisma.employeePermission.update({
+          where: { id },
+          data,
+        });
+        return "updated";
+      } catch (error) {
+        console.log(error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      } finally {
+        await prisma.$disconnect();
+      }
+    }),
+  updateClientPermission: adminProcedure
+    .input(ZClientPermissionUpdate)
+    .mutation(async (opts) => {
+      const { prisma } = opts.ctx;
+      try {
+        const { id, ...data } = opts.input;
+        await prisma.clientPermission.update({
+          where: { id },
+          data,
+        });
+        return "updated";
+      } catch (error) {
+        console.log(error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      } finally {
+        await prisma.$disconnect();
+      }
+    }),
+});
