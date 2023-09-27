@@ -1,0 +1,425 @@
+//this is the problem zod
+
+export const ZCBank = z.object({
+  id: z.string().uuid(),
+  bank: z.array(
+    z.object({
+      account_name: z.string(),
+      account_no: z.string(),
+      bank_name: z.string(),
+      branch_name: z.string(),
+      bank_statement: z.array(z.string()),
+      account_type: z.enum(["SAVINGS", "FDR", "CURRENT"]),
+      starting_from: z.coerce.date().optional(),
+      source: z.string(),
+      amount: z.number(),
+    }),
+  ),
+});
+
+export const ZCBankBackend = z.object({
+  id: z.string().uuid(),
+  bank: z.array(
+    z.object({
+      account_name: z.string(),
+      account_no: z.string(),
+      bank_name: z.string(),
+      branch_name: z.string(),
+      bank_statement: z
+        .array(z.object({ name: z.string() }))
+        .transform((val) =>
+          val && val.length > 0
+            ? val.map((data) => {
+                return data.name;
+              })
+            : [],
+        ),
+      account_type: z.enum(["SAVINGS", "FDR", "CURRENT"]),
+      starting_from: z.coerce.date().optional(),
+      source: z.string(),
+      amount: z.number(),
+    }),
+  ),
+});
+
+
+//step-1
+
+export type TBank = Omit<
+  ArrayElement<RouterOutput["sponsor"]["getBanksBySponsorId"]>,
+  "source"
+> &
+  { source: string }[];
+
+//step 2
+
+"use client";
+import SponsorBank from "@/components/forms/sponsor/bank/bank";
+import CustomLoader from "@/components/ui/loader";
+import { api } from "@/trpc/client";
+
+const Bank = ({ params: { id } }: { params: { id: string } }) => {
+  const {
+    data: bankData,
+    isLoading: isBankLoading,
+    isError,
+    error,
+  } = api.sponsor.getBanksBySponsorId.useQuery(id);
+
+  if (isBankLoading) {
+    <CustomLoader />;
+  }
+  if (isError) {
+    throw new Error(error.message);
+  }
+  return (
+    <main>
+      <SponsorBank bankData={bankData!} id={id} />
+    </main>
+  );
+};
+
+export default Bank;
+
+
+//step=3
+
+"use client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { api } from "@/trpc/client";
+import { TBank, TCBank, TUploadType } from "@/types";
+import { ZCBank } from "@/validators/sponsor";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { MinusCircleIcon } from "lucide-react";
+import { useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { Dropzone } from "@/components/ui/dropzone";
+import { toast } from "react-toastify";
+import { DatePicker } from "@mui/x-date-pickers";
+const SponsorBank = ({ bankData, id }: { bankData: TBank; id?: string }) => {
+  const [account, setAccount] = useState<"SAVINGS" | "FDR" | "CURRENT">(
+    "SAVINGS",
+  );
+  const [bankStatement, setBankStatement] = useState<TUploadType>({
+    status: "unsubmitted",
+  });
+  const [btnDisabled, setBtnDisabled] = useState(false);
+  const utils = api.useContext();
+  const bankUpdate = api.sponsor.updateBank.useMutation();
+  const form = useForm<TCBank>({
+    resolver: zodResolver(ZCBank),
+    defaultValues: {
+      id,
+      bank:
+        bankData && bankData.length > 0
+          ? bankData
+          : [
+              {
+                bank_name: "",
+                branch_name: "",
+                account_name: "",
+                account_no: "",
+                amount: 0,
+                account_type: "SAVINGS",
+                source: "",
+                starting_from: new Date(),
+                bank_statement: [""],
+              },
+            ],
+    },
+  });
+  const bankFields = useFieldArray({
+    control: form.control,
+    name: "bank",
+  });
+  return (
+    <Form {...form}>
+      <form
+        className="mx-12"
+        onSubmit={form.handleSubmit((values) => {
+          if (bankStatement.status !== "success") {
+            return toast.warn("bank statement is required");
+          }
+          console.log({ ...values, bank_statement: bankStatement.name });
+          // setBtnDisabled(true);
+          // const toastID = toast.loading("Updating Your Bank Information!");
+          // bankUpdate.mutate(values, {
+          //   onSuccess: () => {
+          //     setBtnDisabled(false);
+          //     toast.update(toastID, {
+          //       render: "Bank Information updated",
+          //       type: "success",
+          //       isLoading: false,
+          //     });
+          //     utils.getCurrentUserInfo.invalidate();
+          //     const timeOut = setTimeout(() => {
+          //       toast.dismiss(toastID);
+          //     }, 1500);
+          //     return () => clearTimeout(timeOut);
+          //   },
+          //   onError: () => {
+          //     setBtnDisabled(false);
+          //     toast.update(toastID, {
+          //       render: "Something Went Wrong! Please try again later",
+          //       type: "error",
+          //       isLoading: false,
+          //     });
+          //     const timeOut = setTimeout(() => {
+          //       toast.dismiss(toastID);
+          //     }, 1500);
+          //     return () => clearTimeout(timeOut);
+          //   },
+          // });
+        })}
+      >
+        <div className="">
+          <div className="space-y-2 ">
+            {bankFields.fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-6 gap-6">
+                <div className="col-span-5 m-4 flex items-center justify-center gap-4 text-lg text-primary underline">
+                  <p>Bank Details {index + 1}</p>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="p-1" type="button">
+                      <MinusCircleIcon className="text-destructive" size={20} />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Are you sure you want to discard your inputs?
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center gap-3">
+                      <Button
+                        className=" flex items-center justify-center  "
+                        variant="destructive"
+                        onClick={() => bankFields.remove(index)}
+                      >
+                        Discard
+                      </Button>
+                      <DialogPrimitive.Close>
+                        <Button className=" flex items-center justify-center  ">
+                          Cancel
+                        </Button>
+                      </DialogPrimitive.Close>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.bank_name`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Bank Name*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center  justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.branch_name`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Branch Name*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.account_name`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Account Name*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center  justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.account_no`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Account No.*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.source`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Sournce*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.amount`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Amount*</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            placeholder=""
+                            onChange={(event) => {
+                              const parsedValue = parseInt(event.target.value);
+                              if (!isNaN(parsedValue)) {
+                                field.onChange(parsedValue);
+                              } else {
+                                field.onChange(0);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`bank.${index}.account_type`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Account Type*</FormLabel>
+                        <Select
+                          defaultValue=""
+                          onValueChange={(
+                            value: "SAVINGS" | "FDR" | "CURRENT",
+                          ) => setAccount(value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="SAVINGS">Savings</SelectItem>
+                              <SelectItem value="FDR">FDR</SelectItem>
+                              <SelectItem value="CURRENT">Current</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormItem className="w-full">
+                    <FormLabel>Date of Registration</FormLabel>
+                    <FormControl>
+                      <DatePicker
+                        sx={{ width: "100%", mt: 1 }}
+                        slotProps={{
+                          textField: { size: "small" },
+                        }}
+                        value={form.getValues(`bank.${index}.starting_from`)}
+                        onChange={(newValue) => {
+                          form.setValue(
+                            `bank.${index}.starting_from`,
+                            newValue || new Date(),
+                          );
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormLabel>Bank Statement*</FormLabel>
+                  <Dropzone multiple={-1} setName={setBankStatement} />
+                </div>
+                {/* <BankStatement index={index} form={form} /> */}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className=" mt-4 flex flex-col items-center justify-center">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() =>
+              bankFields.append({
+                bank_name: "",
+                branch_name: "",
+                account_name: "",
+                account_no: "",
+                amount: 0,
+                account_type: "SAVINGS",
+                source: "",
+                starting_from: new Date(),
+                bank_statement: [""],
+              })
+            }
+          >
+            Add New
+          </Button>
+        </div>
+        <Button className="mt-6 w-full" disabled={btnDisabled} type="submit">
+          Save
+        </Button>
+      </form>
+    </Form>
+  );
+};
+
+export default SponsorBank;

@@ -1,0 +1,27 @@
+"use client";
+import SponsorBank from "@/components/forms/bank/bank";
+import CustomLoader from "@/components/ui/loader";
+import { api } from "@/trpc/client";
+
+const Bank = ({ params: { id } }: { params: { id: string } }) => {
+  const {
+    data: bankData,
+    isLoading: isBankLoading,
+    isError,
+    error,
+  } = api.sponsor.getBanksBySponsorId.useQuery(id);
+
+  if (isBankLoading) {
+    <CustomLoader />;
+  }
+  if (isError) {
+    throw new Error(error.message);
+  }
+  return (
+    <main>
+      <SponsorBank bankData={bankData} id={id} />
+    </main>
+  );
+};
+
+export default Bank;

@@ -1,0 +1,102 @@
+import { Button } from "@/components/ui/button";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Input } from "@/components/ui/input";
+import { TCBank } from "@/types";
+import { UseFormReturn, useFieldArray } from "react-hook-form";
+import { MinusCircleIcon } from "lucide-react";
+
+const BankStatement = ({
+  index,
+  form,
+}: {
+  index: number;
+  form: UseFormReturn<TCBank, any, undefined>;
+}) => {
+  const statementField = useFieldArray({
+    control: form.control,
+    name: `bank.${index}.bank_statement`,
+  });
+  return (
+    <div className="col-span-full items-center justify-center md:col-span-3 ">
+      {statementField.fields.map((field, index2) => {
+        return (
+          <div className="flex" key={field.id}>
+            <FormField
+              control={form.control}
+              name={`bank.${index}.bank_statement.${index2}.name`}
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>Bank Statement {index2 + 1}*</FormLabel>
+                  <FormControl>
+                    <Input type="text" {...field} placeholder="" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button className="p-1" type="button">
+                    <MinusCircleIcon className="text-destructive" size={20} />
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      Are you sure you want to discard your inputs?
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="flex items-center justify-center gap-3">
+                    <Button
+                      className=" flex items-center justify-center  "
+                      variant="destructive"
+                      onClick={() => statementField.remove(index2)}
+                    >
+                      Discard
+                    </Button>
+                    <DialogPrimitive.Close>
+                      <Button className=" flex items-center justify-center  ">
+                        Cancel
+                      </Button>
+                    </DialogPrimitive.Close>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        );
+      })}
+      <div className=" mt-4 flex flex-col items-center justify-center">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={() =>
+            statementField.append({
+              name: "",
+            })
+          }
+        >
+          Add New
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default BankStatement;
