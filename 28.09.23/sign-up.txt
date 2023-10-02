@@ -1,0 +1,191 @@
+//step 1 signUp zod
+export const ZSignup = z.object({
+  email: z.string().email({ message: "Not a valid Email" }),
+  password: z
+    .string()
+    .min(8, { message: "Password must be atleast 8 charecters" })
+    .max(32, { message: "Password can't be more than 32 charecters" }),
+});
+export const ZCSignup = ZSignup.and(
+  z.object({
+    confirmPassword: z
+      .string()
+      .min(8, { message: "Password must be atleast 8 charecters" })
+      .max(32, { message: "Password can't be more than 32 charecters" }),
+    toc: z
+      .boolean()
+      .default(false)
+      .refine(
+        (toc) => {
+          if (!toc) {
+            return false;
+          }
+          return true;
+        },
+        { message: "You must agree in order to signup" }
+      ),
+  })
+).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+//step 2 code here about signUp
+
+"use client";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useUserContext } from "@/contexts/user";
+import { api } from "@/trpc/client";
+import { TCSignup } from "@/types";
+import { ZCSignup } from "@/validators/authentications";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { redirect, useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+
+const SignUpForm = () => {
+  const signUpMutation = api.auth.signup.useMutation();
+  const form = useForm<TCSignup>({
+    resolver: zodResolver(ZCSignup),
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      toc: false,
+    },
+  });
+  const user = useUserContext();
+  const router = useRouter();
+  if (user.status === "AUTHENTICATED") {
+    redirect("/");
+  }
+  return (
+    <main className="flex h-screen items-center justify-center">
+      <div className="w-[90vw] rounded-lg border border-secondary bg-card shadow-lg shadow-slate-700 md:w-[35vw]">
+        <Form {...form}>
+          <form
+            className="flex flex-col gap-2 px-3 py-10
+            text-card-foreground"
+            onSubmit={form.handleSubmit((values) => {
+              signUpMutation.mutate(values, {
+                onSuccess: (val) => {
+                  toast.success(val);
+                  form.reset();
+                  // FIXME:
+                  router.push("/login");
+                },
+                onError(e) {
+                  toast.error(e.message || "Something went wrong!");
+                },
+              });
+            })}
+          >
+            <h1 className="mb-6 text-center text-xl font-bold">
+              Welcome To Neer Education
+            </h1>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem className="h-16">
+                  <FormControl>
+                    <Input type="email" {...field} placeholder="Email" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem className="h-14">
+                  <FormControl>
+                    <Input type="password" {...field} placeholder="Password" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              shouldUnregister={false}
+              render={({ field }) => (
+                <FormItem className="h-14">
+                  <FormControl>
+                    <Input
+                      type="password"
+                      {...field}
+                      placeholder="Confirm Password"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="toc"
+              shouldUnregister={false}
+              render={({ field }) => (
+                <FormItem className="h-14">
+                  <div className="my-2 flex flex-row justify-center gap-2 ">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel>
+                      Agree to our{" "}
+                      <Link
+                        href="/terms-and-conditions"
+                        className="text-blue-500 underline hover:text-blue-400"
+                      >
+                        Terms and Conditions
+                      </Link>{" "}
+                      and{" "}
+                      <Link
+                        href="/privacy-policy"
+                        className="text-blue-500 underline hover:text-blue-400"
+                      >
+                        Privacy Policy
+                      </Link>
+                      {"."}
+                    </FormLabel>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex items-center justify-center">
+              <Button className="w-15 h-8 " type="submit">
+                Sign Up
+              </Button>
+            </div>
+          </form>
+        </Form>
+        <p className="mb-4 mt-2 px-4 text-center text-xs font-semibold">
+          <span className="mr-1">Already have an account?</span>
+          <Link className="text-blue-500 hover:underline" href="/login">
+            Login
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+};
+
+export default SignUpForm;

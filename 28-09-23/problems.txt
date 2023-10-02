@@ -1,0 +1,6 @@
+1.image api -internal server error
+2.updateBank and updateProperty api problem
+3.when mutate bank and property says error: expected=object recived=array, but clg is = {id:"asdf",property:[{name:""}]}
+4.when get call for  getInformationBySponsorId it dosen't have property,what i needed  for award,skills,education etc.
+5.didn't get the expected type from the router types.
+6.

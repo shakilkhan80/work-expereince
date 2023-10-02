@@ -1,0 +1,104 @@
+//step 1 login zod
+export const ZSignin = z.object({
+  email: z.string().email({ message: "Not a valid Email" }),
+  password: z
+    .string()
+    .min(8, { message: "Password must be atleast 8 charecters" })
+    .max(32, { message: "Password can't be more than 32 charecters" }),
+});
+
+
+//step 2 login here
+"use client";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useUserContext } from "@/contexts/user";
+import { TSignup } from "@/types";
+import { ZSignup } from "@/validators/authentications";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { signIn } from "next-auth/react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+
+const LoginForm = () => {
+  const user = useUserContext();
+  if (user.status === "AUTHENTICATED") {
+    redirect("/");
+  }
+  const form = useForm<TSignup>({
+    resolver: zodResolver(ZSignup),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  return (
+    <main className="flex h-screen items-center justify-center">
+      <div className="w-[90vw] rounded-lg border border-secondary bg-card shadow-lg shadow-slate-700 md:w-[35vw]">
+        <Form {...form}>
+          <form
+            className="flex flex-col gap-2 px-3 py-10
+        text-card-foreground"
+            onSubmit={form.handleSubmit(async (values) => {
+              const sign = await signIn("credentials", values);
+              if (sign?.ok) {
+                form.reset();
+                redirect("/");
+              }
+              toast.error(sign?.error ?? "login error");
+            })}
+          >
+            <h1 className="mb-6 text-center text-xl font-bold">Welcome Back</h1>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem className="h-16">
+                  <FormControl>
+                    <Input type="email" {...field} placeholder="Email" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem className="h-16 ">
+                  <FormControl>
+                    <Input type="password" {...field} placeholder="Password" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex items-center justify-center">
+              <Button className="w-15 h-8 " type="submit">
+                Log In
+              </Button>
+            </div>
+          </form>
+        </Form>
+        <p className="mb-4 mt-2 px-4 text-center text-xs font-semibold">
+          <span className="mr-1">New to Neer Education?</span>
+          <Link className="text-blue-500 hover:underline" href="/signup">
+            Signup
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+};
+
+export default LoginForm;

@@ -1,0 +1,377 @@
+//type of input  value
+export const Zproperty_type = z.enum([
+  "FLAT",
+  "APARTMENT",
+  "LAND",
+  "HOUSE",
+  "CAR",
+]);
+export const ZCProperty = z.object({
+  id: z.string().uuid(),
+  property: z.array(
+    z.object({
+      property_type: Zproperty_type,
+      value: z.number(),
+      rent: z.number(),
+      source: z.string(),
+      size: z.string(),
+      address: z.string(),
+    }),
+  ),
+});
+
+// type of default value
+
+export type TProperty_type = z.infer<typeof Zproperty_type>;
+export type TProperty = Prettify<Omit<ArrayElement<
+  RouterOutput["sponsor"]["getPropertiesBySponsorId"]
+>,"property_type"> & {"property_type": TProperty_type}>
+
+//data get page and send perametter
+
+"use client";
+import SponsorsProperty from "@/components/forms/informations/property/property";
+import CustomLoader from "@/components/ui/loader";
+import { api } from "@/trpc/client";
+import { TProperty_type } from "@/types";
+
+const SponsorProperty = ({ params: { id } }: { params: { id: string } }) => {
+  const { data, isLoading, isError, error } =
+    api.sponsor.getPropertiesBySponsorId.useQuery(id);
+  if (isLoading) {
+    return <CustomLoader />;
+  }
+  if (isError) {
+    throw new Error(error.message);
+  }
+  const update = data.map((d) => {
+    return {
+      ...d,
+      property_type: (d.property_type as TProperty_type) || "FLAT",
+    };
+  });
+  return <SponsorsProperty propertyData={update} id={id} />;
+};
+
+export default SponsorProperty;
+
+//input field page
+
+"use client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { api } from "@/trpc/client";
+import { TCProperty, TProperty, TProperty_type } from "@/types";
+import { ZCProperty } from "@/validators/sponsor";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { MinusCircleIcon } from "lucide-react";
+import { useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "react-toastify";
+
+const SponsorsProperty = ({
+  propertyData,
+  id,
+}: {
+  propertyData: TProperty[];
+  id?: string;
+}) => {
+  const [btnDisabled, setBtnDisabled] = useState(false);
+  const utils = api.useContext();
+  const propertyUpdate = api.sponsor.updateProperty.useMutation();
+
+  const data =
+    propertyData && propertyData.length > 0
+      ? propertyData.map((p) => {
+          return {
+            property_type: p.property_type || undefined,
+            value: p.value || 0,
+            address: p.address || "",
+            source: p.source || "",
+            rent: p.rent || 0,
+            size: p.size || "",
+          };
+        })
+      : [
+          {
+            property_type: undefined,
+            value: 0,
+            address: "",
+            source: "",
+            rent: 0,
+            size: "",
+          },
+        ];
+  const form = useForm<TCProperty>({
+    resolver: zodResolver(ZCProperty),
+    defaultValues: {
+      id,
+      property: data,
+    },
+  });
+
+  const propertyFields = useFieldArray({
+    control: form.control,
+    name: "property",
+  });
+  return (
+    <Form {...form}>
+      <form
+        className="mx-12"
+        onSubmit={form.handleSubmit((values) => {
+          setBtnDisabled(true);
+          const toastID = toast.loading("Updating Your Information!");
+
+          propertyUpdate.mutate(values, {
+            onSuccess: () => {
+              setBtnDisabled(false);
+              toast.update(toastID, {
+                render: "Information updated",
+                type: "success",
+                isLoading: false,
+              });
+              utils.getCurrentUserInfo.invalidate();
+              const timeOut = setTimeout(() => {
+                toast.dismiss(toastID);
+              }, 1500);
+              return () => clearTimeout(timeOut);
+            },
+            onError: () => {
+              setBtnDisabled(false);
+              toast.update(toastID, {
+                render: "Something Went Wrong! Please try again later",
+                type: "error",
+                isLoading: false,
+              });
+              const timeOut = setTimeout(() => {
+                toast.dismiss(toastID);
+              }, 1500);
+              return () => clearTimeout(timeOut);
+            },
+          });
+        })}
+      >
+        <div className="">
+          <div className="space-y-2 ">
+            {propertyFields.fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-6 gap-6">
+                <div className="col-span-5 m-4 flex items-center justify-center gap-4 text-lg text-primary underline">
+                  <p>Property Details {index + 1}</p>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="p-1" type="button">
+                      <MinusCircleIcon className="text-destructive" size={20} />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Are you sure you want to discard your inputs?
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center gap-3">
+                      <Button
+                        className=" flex items-center justify-center  "
+                        variant="destructive"
+                        onClick={() => propertyFields.remove(index)}
+                      >
+                        Discard
+                      </Button>
+                      <DialogPrimitive.Close>
+                        <Button className=" flex items-center justify-center  ">
+                          Cancel
+                        </Button>
+                      </DialogPrimitive.Close>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`property.${index}.property_type`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Property Type*</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={(value: TProperty_type) => {
+                            form.setValue(
+                              `property.${index}.property_type`,
+                              value,
+                            );
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="FLAT">Flat</SelectItem>
+                              <SelectItem value="APARTMENT">
+                                Apartment
+                              </SelectItem>
+                              <SelectItem value="HOUSE">House</SelectItem>
+                              <SelectItem value="LAND">Land</SelectItem>
+                              <SelectItem value="CAR">Car</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`property.${index}.value`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Property Value*</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            placeholder=""
+                            onChange={(event) => {
+                              const parsedValue = parseInt(event.target.value);
+                              if (!isNaN(parsedValue)) {
+                                field.onChange(parsedValue);
+                              } else {
+                                field.onChange(0);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center  justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`property.${index}.rent`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Rent*</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            placeholder=""
+                            onChange={(event) => {
+                              const parsedValue = parseInt(event.target.value);
+                              if (!isNaN(parsedValue)) {
+                                field.onChange(parsedValue);
+                              } else {
+                                field.onChange(0);
+                              }
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`property.${index}.address`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Address*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center  justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`property.${index}.source`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Source*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="col-span-full items-center justify-center md:col-span-3 ">
+                  <FormField
+                    control={form.control}
+                    name={`property.${index}.size`}
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Size*</FormLabel>
+                        <FormControl>
+                          <Input type="text" {...field} placeholder="" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className=" mt-4 flex flex-col items-center justify-center">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() =>
+              propertyFields.append({
+                property_type: "FLAT",
+                value: 0,
+                address: "",
+                source: "",
+                rent: 0,
+                size: "",
+              })
+            }
+          >
+            Add New
+          </Button>
+        </div>
+        <Button className="mt-6 w-full" disabled={btnDisabled} type="submit">
+          Save
+        </Button>
+      </form>
+    </Form>
+  );
+};
+export default SponsorsProperty;
