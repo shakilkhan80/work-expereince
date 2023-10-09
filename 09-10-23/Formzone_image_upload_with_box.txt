@@ -1,0 +1,170 @@
+"use client";
+import { Button } from "@/components/ui/button";
+import { mimeData } from "@/lib/data";
+import useFileMuation from "@/lib/useFileUpload";
+import { cn } from "@/lib/utils";
+import { TFormZoneProps } from "@/types";
+import { SaveIcon } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
+
+export const FormZone = ({
+  multiple = false,
+  disabled = false,
+  Icon,
+  iconStyle,
+  className,
+  form,
+  fieldName,
+}: TFormZoneProps) => {
+  const [uploadAble, setUploadAble] = useState<File[]>([]);
+
+  const fileMuation = useFileMuation();
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop: async (e) => {
+      if (e.length === 0) {
+        return;
+      }
+      if (!multiple) {
+        setUploadAble([e[0]]);
+      } else {
+        setUploadAble((prev) => {
+          return [...prev, ...e];
+        });
+      }
+    },
+    disabled,
+    accept: mimeData,
+    maxSize: 4000000,
+    maxFiles: 100,
+  });
+
+  const handleClick = () => {
+    const formData = new FormData();
+    uploadAble.forEach((i, index) => {
+      formData.append(`file-${index}`, i);
+    });
+    formData.append("length", `${uploadAble.length}`);
+    const toastId = toast.loading("Uploading files...");
+    fileMuation.mutate(formData, {
+      onSuccess: (data) => {
+        form.setValue(fieldName, data);
+        toast.success("Uploaded Successfully", {
+          id: toastId,
+        });
+      },
+      onError: (e) => {
+        form.setError(fieldName, {
+          type: "error",
+          message: "something went wrong while uploading",
+        });
+        toast.error("Failed to upload", { id: toastId });
+      },
+    });
+  };
+
+  return (
+    <main>
+      <div
+        className={cn(
+          "container flex h-20 w-72 cursor-pointer items-center justify-center rounded-lg  border-2 border-dashed border-black",
+          className,
+        )}
+      >
+        <div {...getRootProps({ className: "dropzone" })}>
+          <input {...getInputProps()} multiple={multiple} />
+          {multiple ? (
+            <Image
+              src="/uploads2.png"
+              width={500}
+              height={500}
+              alt="Picture of the author"
+              className="h-10 w-10"
+            />
+          ) : Icon ? (
+            <Icon className={cn("", iconStyle)} />
+          ) : (
+            // <ImageIcon className={"ml-2 "} />
+            <Image
+              src="/profile.png"
+              width={500}
+              height={500}
+              alt="Picture of the author"
+              className="h-10 w-10"
+            />
+          )}
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={"outline"}
+              className="ml-2 bg-primary  font-bold text-white hover:bg-primary hover:text-white"
+              type="button"
+              onClick={handleClick}
+              // style={{ position: "fixed", top: "20px", right: "20px" }}
+            >
+              {/* Uploads */}
+              <SaveIcon />
+              {/* <Image
+                src="/file.png"
+                width={500}
+                height={500}
+                alt="Picture of the author"
+                className="h-10 w-10"
+              /> */}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-yellow-600">
+              Click <span className="font-semibold">Save</span> at the bottom
+              after you upload to keep changes.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="flex  w-full items-center justify-center ">
+        {uploadAble.length > 0 ? (
+          <div className="mt-4 w-[530px] rounded-2xl border-2 border-green-400  px-6 py-3">
+            <table
+              className="
+            "
+            >
+              <tbody className="">
+                {uploadAble?.map((f, index) => (
+                  <tr key={index} className="grid  w-full grid-cols-4 gap-16  ">
+                    <td className="col-span-2 text-lg font-semibold">
+                      {f.name.slice(0, 17)}
+                    </td>
+                    {/* <td className="text-sm text-gray-500">
+                      {(f.size / 1024).toFixed(2)} KB
+                    </td> */}
+                    <td className="col-span-1 text-sm text-gray-500">
+                      {f.size < 1024
+                        ? `${f.size.toFixed(2)} Byte`
+                        : f.size < 1024 * 1024
+                        ? `${(f.size / 1024).toFixed(2)} KB`
+                        : `${(f.size / (1024 * 1024)).toFixed(2)} MB`}
+                    </td>
+                    <td>
+                      <button
+                        className=" col-span-1 h-6 rounded bg-red-500 px-1  text-white"
+                        onClick={() => {
+                          setUploadAble((prev) => prev.filter((i) => i !== f));
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </div>
+    </main>
+  );
+};
