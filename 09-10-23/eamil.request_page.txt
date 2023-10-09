@@ -1,0 +1,46 @@
+"use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { api } from "@/trpc/client";
+import { useRef } from "react";
+import { toast } from "sonner";
+
+const EmailPage = () => {
+  const emailMutation = api.auth.emailVerifyRequest.useMutation();
+  const emailRef = useRef<HTMLInputElement>(null); //passed as an argument is the initial value of the ref
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-gray-100">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+        <h1 className="mb-4 text-2xl font-bold">Email Verification</h1>
+
+        <div className="mb-4">
+          <Input
+            ref={emailRef}
+            type="email"
+            required
+            className={`w-full rounded border border-gray-300 p-2  focus:outline-none`}
+          />
+        </div>
+
+        <Button
+          className="w-full rounded bg-primary p-2 font-semibold text-white transition duration-300 hover:bg-primary"
+          onClick={() => {
+            emailMutation.mutate(emailRef?.current?.value!, {
+              onSuccess: () => {
+                toast.success("Verification Email Sent");
+              },
+              onError: () => {
+                toast.error("Verification Email doesn't exists ");
+              },
+            });
+          }}
+        >
+          Submit
+        </Button>
+      </div>
+    </main>
+  );
+};
+
+export default EmailPage;

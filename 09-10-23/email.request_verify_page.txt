@@ -1,0 +1,62 @@
+"use client";
+import { api } from "@/trpc/client";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+const EmailVerifyPage = () => {
+  const emailMutation = api.auth.emailVerify.useMutation();
+  const params = useSearchParams();
+  const email = params.get("email");
+  const code = params.get("code");
+  const [data, setData] = useState<string>();
+
+  useEffect(() => {
+    if (!data) {
+      if (!email || !code) {
+        toast.error("email and code both required");
+        return;
+      }
+      emailMutation.mutate(
+        { email, code },
+        {
+          onSuccess: (val) => {
+            setData(val || "abv");
+          },
+          onError: (error) => {
+            setData(error.message || "internal server error");
+          },
+        },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+  return (
+    <main className=" flex min-h-screen items-center justify-center bg-background ">
+      <div className="w-full max-w-md rounded-lg bg-popover p-6 shadow-lg">
+        {data && (
+          <p className="font-bold capitalize text-orange-500">
+            {data === "NOT_FOUND"
+              ? "email doesn't exists "
+              : data === "TIMEOUT"
+              ? "verification code expired"
+              : data === "PRECONDITION_FAILED"
+              ? "email already verified"
+              : data === "verified"
+              ? "email verified"
+              : "internal server error"}
+          </p>
+        )}
+
+        {data === "verified" && (
+          <Link href="/login">
+            <h1 className="mt-4 text-primary">Go back to Login Page</h1>
+          </Link>
+        )}
+      </div>
+    </main>
+  );
+};
+
+export default EmailVerifyPage;
