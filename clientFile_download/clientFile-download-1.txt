@@ -1,0 +1,252 @@
+"use client";
+import DownloadClientFile from "@/components/admin/clientFile/download";
+import CustomDataGrid from "@/components/shared/customDataGrid";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ErrorFinder } from "@/lib/helper";
+import { api } from "@/trpc/client";
+import { TFundClient } from "@/types";
+import { ZClientFile } from "@/validators";
+import { Tooltip } from "@mui/material";
+import { GridActionsCellItem, GridColDef } from "@mui/x-data-grid";
+import { DownloadIcon } from "lucide-react";
+import { redirect } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+
+const FilesDownloadPage = () => {
+  const utils = api.useUtils();
+  const problemEmailMutation = api.email.sendProblem.useMutation({
+    onMutate: () => {
+      return toast.loading("Sending email....");
+    },
+    onSuccess: (val, _, context) => {
+      toast.success(val, {
+        id: context,
+      });
+    },
+    onError: (e, _, context) => {
+      toast.error(e.message || "Something went wrong!", {
+        id: context,
+      });
+    },
+  });
+  const { data, isLoading, isError, error } = api.files.getList.useQuery();
+  const [downloadBtnDisabled, setDownloadBtnDisabled] = useState(false);
+
+  const [clientId, setClientId] = useState<string | undefined>();
+  if (isError) {
+    throw new Error(error.message);
+  }
+  const columns: GridColDef<TFundClient>[] = [
+    {
+      field: "system_id",
+      headerName: "ID",
+      minWidth: 100,
+      flex: 1,
+      align: "center",
+      headerAlign: "center",
+      renderCell: ({ row }) => {
+        return <> NEER-{row.system_id}</>;
+      },
+    },
+    {
+      field: "full_name",
+      headerName: "Full Name",
+      minWidth: 150,
+      flex: 1,
+      align: "center",
+      headerAlign: "center",
+      renderCell: ({ row }) => (
+        <>
+          {row.information?.first_name} {row.information?.last_name}
+        </>
+      ),
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      minWidth: 150,
+      flex: 1,
+      align: "center",
+      headerAlign: "center",
+    },
+    {
+      field: "phone",
+      headerName: "Phone",
+      minWidth: 100,
+      flex: 1,
+      align: "center",
+      headerAlign: "center",
+    },
+    {
+      field: "nid",
+      headerName: "NID no.",
+      minWidth: 120,
+      flex: 1,
+      align: "center",
+      headerAlign: "center",
+    },
+    {
+      field: "fund",
+      type: "actions",
+      headerName: "Fund file",
+      width: 90,
+      cellClassName: "actions",
+      getActions: ({ row }) => {
+        return [
+          <Tooltip title="download fund file" key={row.id} placement="top">
+            <GridActionsCellItem
+              label="fund file download"
+              icon={<DownloadIcon className="text-primary" size={26} />}
+              color="inherit"
+            />
+          </Tooltip>,
+        ];
+      },
+    },
+    {
+      field: "client",
+      type: "actions",
+      headerName: "Client File",
+      width: 90,
+      cellClassName: "actions",
+      getActions: ({ row }) => {
+        return [
+          <Tooltip
+            title={
+              downloadBtnDisabled ? "loading data..." : "download client file"
+            }
+            key={row.id}
+            placement="top"
+          >
+            <GridActionsCellItem
+              label="client file download"
+              icon={<DownloadIcon className="text-primary" size={26} />}
+              color="inherit"
+              onMouseEnter={async () => {
+                setDownloadBtnDisabled(true);
+                await utils.files.getClientFileData.prefetch(row.id);
+                const data = await utils.files.getClientFileData.ensureData(
+                  row.id,
+                );
+                await utils.getCdnImgLink.prefetch(data?.information?.image);
+                await utils.getCdnImgLink.prefetch(
+                  data?.information?.nid?.image,
+                );
+                data?.information?.academic?.forEach(async (aca) => {
+                  await utils.getCdnImgLink.prefetch(aca.certificate);
+                  await utils.getCdnImgLink.prefetch(aca.transcript);
+                });
+                if (!data) {
+                  setDownloadBtnDisabled(true);
+                } else {
+                  setDownloadBtnDisabled(false);
+                }
+              }}
+              onClick={async () => {
+                const data = utils.files.getClientFileData.getData(row.id);
+                if (data) {
+                  await utils.getCdnImgLink.prefetch(
+                    data.information?.nid?.image,
+                  );
+                  await utils.getCdnImgLink.prefetch(
+                    data.information?.police_clearance,
+                  );
+                  await utils.getCdnImgLink.prefetch(
+                    data.information?.birth_certificate?.image,
+                  );
+                  await utils.getCdnImgLink.prefetch(
+                    data.information?.english_certificate,
+                  );
+                  await utils.getCdnImgLink.prefetch(
+                    data.information?.other_certificate,
+                  );
+                  data.information?.academic?.forEach(async (aca) => {
+                    await utils.getCdnImgLink.prefetch(aca.certificate);
+                    await utils.getCdnImgLink.prefetch(aca.transcript);
+                  });
+                  const { upload, insert, isErr } = ErrorFinder(
+                    data,
+                    ZClientFile,
+                  );
+                  if (isErr) {
+                    toast.error(
+                      <div className="capitalize">
+                        not enough information to generate. <br />
+                        <Button
+                          variant={"link"}
+                          onClick={() => {
+                            problemEmailMutation.mutate({
+                              id: data.id!,
+                              upload,
+                              insert,
+                            });
+                          }}
+                        >
+                          Ask Client
+                        </Button>
+                        <Button
+                          variant={"link"}
+                          onClick={() => {
+                            redirect(
+                              `/dashboard/user-management/${data?.information?.id}`,
+                            );
+                          }}
+                        >
+                          Fill Yourself
+                        </Button>
+                      </div>,
+                    );
+                  } else {
+                    setClientId(row.id);
+                  }
+                } else {
+                  setDownloadBtnDisabled(true);
+                  toast(
+                    <p className="text-yellow-700">
+                      currently fetching data for{" "}
+                      <span className="font-semibold">
+                        {row.information?.first_name}{" "}
+                        {row.information?.last_name}
+                      </span>
+                      <br />
+                      <span>Please retry again</span>
+                    </p>,
+                  );
+                }
+              }}
+            />
+          </Tooltip>,
+        ];
+      },
+    },
+  ];
+
+  // required for table searching
+  const updatedData = data?.map((d) => ({
+    ...d,
+    nid: d.information?.nid?.number,
+  }));
+  return (
+    <div>
+      <h1 className="mt-8 text-5xl font-semibold capitalize text-primary">
+        client list
+      </h1>
+      <Separator className="h-1 bg-gradient-to-r from-primary to-secondary" />
+      <CustomDataGrid
+        columns={columns}
+        rows={updatedData || []}
+        loading={isLoading}
+      />
+      {clientId && (
+        <DownloadClientFile
+          clientId={clientId}
+          onClose={() => setClientId(undefined)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default FilesDownloadPage;

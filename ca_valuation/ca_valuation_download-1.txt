@@ -1,0 +1,108 @@
+"use client";
+
+import CustomDataGrid from "@/components/shared/customDataGrid";
+import CustomLoader from "@/components/ui/loader";
+import { Separator } from "@/components/ui/separator";
+import { api } from "@/trpc/client";
+import { TAdminCaValuation } from "@/types";
+import { Tooltip } from "@mui/material";
+import { GridActionsCellItem, GridColDef } from "@mui/x-data-grid";
+import { DownloadIcon } from "lucide-react";
+import { useState } from "react";
+import CaViolationDownload from "./ca-violationid";
+
+const CaValuationGrid = () => {
+  const [downloadCaValuation, setDownloadCaValuation] = useState<
+    TAdminCaValuation | undefined
+  >(undefined);
+  const { data, isLoading, isError } = api.fund.getAllCaValuation.useQuery();
+
+  if (isLoading) {
+    return <CustomLoader />;
+  }
+  if (isError)
+    return (
+      <div className="flex items-center justify-center">
+        <p className="rounded-lg bg-warning px-6 py-2">No Data found...</p>
+      </div>
+    );
+  const columns: GridColDef<TAdminCaValuation>[] = [
+    {
+      field: "system_id",
+      headerName: "ID",
+      width: 100,
+      renderCell: ({ row }) => {
+        return <>NEER-{row.user?.system_id}</>;
+      },
+    },
+    {
+      field: "first_name",
+      headerName: "First Name",
+      width: 150,
+    },
+    {
+      field: "last_name",
+      headerName: "Last Name",
+      width: 150,
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      width: 300,
+      renderCell: ({ row }) => {
+        return <>{row.user?.email}</>;
+      },
+    },
+    { field: "phone", headerName: "Phone", width: 150 },
+    {
+      field: "CA",
+      type: "actions",
+      headerName: "CA Valuation",
+      width: 250,
+      cellClassName: "actions",
+      getActions: ({ row }) => {
+        return [
+          <Tooltip
+            title="Download CA Valuation Certificate"
+            key={row.user?.system_id}
+          >
+            <GridActionsCellItem
+              label="Download CA Valuation Certificate"
+              icon={<DownloadIcon className="text-primary" />}
+              onClick={() => {
+                setDownloadCaValuation(row);
+              }}
+            />
+          </Tooltip>,
+        ];
+      },
+    },
+  ];
+  const updatedList = data?.map((bcData) => {
+    return {
+      ...bcData,
+      system_id: bcData.user?.system_id,
+    };
+  });
+
+  return (
+    <main>
+      <h1 className="text-3xl font-extrabold capitalize text-primary">
+        CA Valuation List
+      </h1>
+      <Separator className="mb-4 h-1 bg-gradient-to-r from-primary via-primary/50 to-popover" />
+      <CustomDataGrid
+        columns={columns}
+        rows={updatedList ?? []}
+        loading={isLoading}
+      />
+      {downloadCaValuation && (
+        <CaViolationDownload
+          userData={downloadCaValuation}
+          setClose={() => setDownloadCaValuation(undefined)}
+        />
+      )}
+    </main>
+  );
+};
+export default CaValuationGrid;

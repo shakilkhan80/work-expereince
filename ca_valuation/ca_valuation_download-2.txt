@@ -1,0 +1,39 @@
+import { DownloadCaValuation } from "@/lib/generate-docx/caValuation";
+import { api } from "@/trpc/client";
+import { TAdminCaValuation } from "@/types";
+import { useEffect, useState } from "react";
+
+const CaViolationDownload = ({
+  userData,
+  setClose,
+}: {
+  userData: TAdminCaValuation;
+  setClose: () => void;
+}) => {
+  const [flag, setFlag] = useState(true);
+
+  const { data, isError, error } = api.fund.getCaById.useQuery(userData.id);
+  const {
+    data: CAD,
+    isError: isCDErr,
+    error: cdErr,
+  } = api.getCADRate.useQuery();
+  useEffect(() => {
+    if (data && CAD && flag) {
+      DownloadCaValuation({ caData: data, userData, CAD });
+      setClose();
+      setFlag(false);
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+  if (isError) {
+    throw new Error(error.message);
+  }
+  if (isCDErr) {
+    throw new Error(cdErr.message);
+  }
+
+  return <div></div>;
+};
+export default CaViolationDownload;

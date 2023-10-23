@@ -1,0 +1,41 @@
+"use client";
+import { DownloadAffiDavit } from "@/lib/generate-docx/affidavit-paper";
+import { api } from "@/trpc/client";
+import { TAffidavit } from "@/types";
+import { useEffect, useState } from "react";
+const AffidavitDownloadPage = ({
+  client,
+  setClose,
+}: {
+  client: TAffidavit;
+  setClose: () => void;
+}) => {
+  const [flag, setFlag] = useState(true);
+  const { data, isError, error } = api.fund.getAffidavitById.useQuery(
+    client.id,
+  );
+  const {
+    data: CAD,
+    isError: isCDErr,
+    error: cdErr,
+  } = api.getCADRate.useQuery();
+  if (isCDErr) {
+    throw new Error(cdErr?.message);
+  }
+  if (isError) {
+    throw new Error(error.message);
+  }
+
+  useEffect(() => {
+    if (data && CAD && flag) {
+      DownloadAffiDavit({ data, client, CAD });
+      setClose();
+      setFlag(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  return null;
+};
+
+export default AffidavitDownloadPage;

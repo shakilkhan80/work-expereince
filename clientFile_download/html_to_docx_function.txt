@@ -1,0 +1,120 @@
+ ...htmlimg_to_docx(
+        generatedCV,
+        `4.${getFourthTitleNumber()}.  MAIN APPLICANT'S (${data?.information
+          ?.first_name} ${data?.information?.last_name}) CV`,
+      ),
+
+import {
+  AlignmentType,
+  HeadingLevel,
+  HorizontalPositionAlign,
+  ImageRun,
+  Paragraph
+} from "docx";
+
+export const generateNid = (nidImage: string, name: string) => {
+  const nidImageParagraph = new Paragraph({
+    children: [
+      new ImageRun({
+        data: nidImage,
+        transformation: {
+          width: 615,
+          height: 867.15,
+        },
+        floating: {
+          horizontalPosition: {
+            align: HorizontalPositionAlign.CENTER,
+          },
+          verticalPosition: {
+            offset: 1654400,
+          },
+        },
+        altText: {
+          title: `${name}'s NID`,
+          description: `${name}'s NID`,
+          name: `${name}'s NID`,
+        },
+      }),
+    ],
+  });
+  return {
+    children: [
+      new Paragraph({
+        text: `1.1. MAIN APPLICANT'S (${name}) NID CARD TRANSLATION`,
+        heading: HeadingLevel.HEADING_2,
+        alignment: AlignmentType.CENTER,
+      }),
+      nidImageParagraph,
+    ],
+  };
+};
+export const htmlimg_to_docx = (image: ArrayBuffer | string, header: string) => {
+  const nidImageParagraph = new Paragraph({
+    children: [
+      new ImageRun({
+        data: image,
+        transformation: {
+          width: 615,
+          height: 867.15,
+        },
+        floating: {
+          horizontalPosition: {
+            align: HorizontalPositionAlign.CENTER,
+          },
+          verticalPosition: {
+            offset: 1654400,
+          },
+        },
+        altText: {
+          title: `${header}`,
+          description:  `${header}`,
+          name:  `${header}`,
+        },
+      }),
+    ],
+  });
+  return [
+      new Paragraph({
+        text: `${header}`,
+        heading: HeadingLevel.HEADING_2,
+        alignment: AlignmentType.CENTER,
+        pageBreakBefore: true,
+      }),
+      nidImageParagraph,
+  ]
+};
+// export const htmlimg_to_docx2 = (image: string, header: string) => {
+//   const nidImageParagraph = new Paragraph({
+//     children: [
+//       new ImageRun({
+//         data: image,
+//         transformation: {
+//           width: 615,
+//           height: 867.15,
+//         },
+//         floating: {
+//           horizontalPosition: {
+//             align: HorizontalPositionAlign.CENTER,
+//           },
+//           verticalPosition: {
+//             offset: 1654400,
+//           },
+//         },
+//         altText: {
+//           title: `${header}`,
+//           description:  `${header}`,
+//           name:  `${header}`,
+//         },
+//       }),
+//     ],
+//   });
+//   return [
+//       new Paragraph({
+//         text: `${header}`,
+//         heading: HeadingLevel.HEADING_2,
+//         alignment: AlignmentType.CENTER,
+//         pageBreakBefore: true,
+//       }),
+//       nidImageParagraph,
+//   ]
+// };

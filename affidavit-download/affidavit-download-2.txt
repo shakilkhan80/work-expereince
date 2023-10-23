@@ -1,0 +1,1476 @@
+//@ts-nocheck
+import { TAffidavit, TAffidavitIdData, TCAD } from "@/types";
+import { countryName } from "@/types/country";
+import { findNationality } from "@nexisltd/country";
+import axios from "axios";
+import { format } from "date-fns";
+import {
+  AlignmentType,
+  Document,
+  Header,
+  HorizontalPositionAlign,
+  ImageRun,
+  Paragraph,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableRow,
+  TextRun,
+  UnderlineType,
+  VerticalAlign,
+  VerticalPositionAlign,
+  WidthType,
+} from "docx";
+import { getRandomStamp } from "../utils";
+//!FIXME
+// @ts-nocheck
+export const DownloadAffiDavit = async ({
+  data,
+  client,
+  CAD,
+}: {
+  data: TAffidavitIdData;
+  client: TAffidavit;
+  CAD: TCAD;
+}) => {
+  let affidavit = [];
+  for (const oneData of data) {
+    const reg_no = getRandomStamp();
+    const { data: headerImage } = await axios.get(
+      "/image-templates/affidavit-bg.png",
+      {
+        responseType: "arraybuffer",
+      },
+    );
+    const propertyTypeList = oneData?.property.map((p) => p.property_type);
+    const propertyRentList = oneData?.property.map((p) => p.rent || 0);
+    const nationality = findNationality(
+      oneData.information?.permanent_country as countryName,
+    );
+    console.log(nationality, oneData);
+    const propertyRentReduce = propertyRentList?.reduce(
+      (prev, sum) => prev + sum,
+      0,
+    );
+    const propertyRentAvg =
+      propertyRentReduce > 0 ? propertyRentReduce / propertyTypeList.length : 0;
+    const totalMonthRent = propertyTypeList.length * propertyRentAvg;
+    const totalMonthRentCAD = (totalMonthRent / CAD.convertionRate).toFixed(2);
+    const totalYearRent = totalMonthRent * 12;
+    const totalYearRentCAD = (totalYearRent / CAD.convertionRate).toFixed(2);
+    const propertyAddressList = oneData.property.map((p) => p.address);
+    const { bank } = oneData;
+    const bankSourceList = bank.map((b) => b.source || "");
+    const bankAmountList = bank.map((b) => b.amount || 0);
+    const bankAmountTotal = bankAmountList.reduce((prev, sum) => prev + sum, 0);
+    const bankAmountCAD = (bankAmountTotal / CAD.convertionRate).toFixed(3);
+    let itr2 = 0;
+    let bankDataPage: (typeof bank)[] = [];
+    bankDataPage[0] = [];
+    let bankSize = bank.length;
+    let k = 0;
+    let m = 0;
+    for (let i = 0; i < bankSize; i++) {
+      if ((m === 0 && k > 2) || (m > 0 && k > 3)) {
+        k = 0;
+        m++;
+        bankDataPage[m] = [];
+      }
+      bankDataPage[m][k] = bank[i];
+      k++;
+    }
+    let pageLength = bankDataPage.length;
+    let allTablePages: TableRow[][] = [];
+    let lastPages: {
+      headers: { default: Header };
+      children: (Paragraph | Table)[];
+    }[] = [];
+    bankDataPage.forEach((tablePages, i) => {
+      allTablePages[i] = [];
+      if (i === 0) {
+        //bank calculation first page
+        tablePages.forEach((p, j) => {
+          allTablePages[i].push(
+            new TableRow({
+              children: [
+                //sl
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `${++itr2}.`,
+                          size: 20,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //account type details
+                new TableCell({
+                  children: [
+                    new Paragraph({
+                      text: "",
+                    }),
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `${p.account_type ?? ""}:- `,
+                          bold: true,
+                          underline: {
+                            color: "#030100",
+                            type: UnderlineType.SINGLE,
+                          },
+                          size: 20,
+                        }),
+                      ],
+                    }),
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: "Account Name: ",
+                          size: 24,
+                        }),
+                        new TextRun({
+                          text: `${oneData?.information?.first_name ?? ""} ${
+                            oneData?.information?.last_name ?? ""
+                          }`.toUpperCase(),
+                          bold: true,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` A/C No: ${
+                            p.account_no
+                          } ${p.bank_name?.toLowerCase()} ${p.branch_name}`,
+                        }),
+                      ],
+                    }),
+                    new Paragraph({
+                      text: "",
+                    }),
+                  ],
+                  verticalAlign: VerticalAlign.CENTER,
+                }),
+                //account type start
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: p.account_type ?? "",
+                          bold: true,
+                          size: 20,
+                        }),
+                      ],
+                    }),
+
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `Starting From:${format(
+                            new Date(p.starting_from!),
+                            "dd/MM/yyyy",
+                          )}`,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //source
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: p.source ?? undefined,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //amount
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `${p.amount?.toString()}/-` ?? undefined,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //cad
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: p.amount
+                            ? (p.amount / CAD.convertionRate)
+                                .toFixed(3)
+                                .toString()
+                            : "",
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          );
+        });
+      } else {
+        //bank calculation second - last
+        tablePages.forEach((p, j) => {
+          itr2++;
+          allTablePages[i].push(
+            new TableRow({
+              children: [
+                //sl
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `${itr2}.`,
+                          size: 20,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //account type details
+                new TableCell({
+                  children: [
+                    new Paragraph({
+                      text: "",
+                    }),
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `${p.account_type ?? undefined}:- `,
+                          bold: true,
+                          underline: {
+                            color: "#030100",
+                            type: UnderlineType.SINGLE,
+                          },
+                          size: 20,
+                        }),
+                      ],
+                    }),
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: "Account Name: ",
+                          size: 24,
+                        }),
+                        new TextRun({
+                          text: `${oneData?.information?.first_name ?? ""} ${
+                            oneData?.information?.last_name ?? ""
+                          }`.toUpperCase(),
+                          bold: true,
+                          size: 18,
+                        }),
+                        new TextRun({
+                          text: ` A/C No: ${
+                            p.account_no
+                          } ${p.bank_name?.toLowerCase()} ${p.branch_name}`,
+                        }),
+                      ],
+                    }),
+                    new Paragraph({
+                      text: "",
+                    }),
+                  ],
+                  verticalAlign: VerticalAlign.CENTER,
+                }),
+                //account type start
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: p.account_type ?? undefined,
+                          bold: true,
+                          size: 20,
+                        }),
+                      ],
+                    }),
+
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `Starting From:${format(
+                            new Date(p.starting_from!),
+                            "dd/MM/yyyy",
+                          )}`,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //source
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: p.source ?? undefined,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //amount
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: `${p.amount?.toString()}/-` ?? undefined,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                //cad
+                new TableCell({
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: p.amount
+                            ? (p.amount / CAD.convertionRate)
+                                .toFixed(3)
+                                .toString()
+                            : undefined,
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          );
+          if (
+            bankDataPage.length - 1 === i &&
+            tablePages.length - 1 === j &&
+            bankDataPage.length - 1 !== 0
+          ) {
+            allTablePages[i].push(
+              new TableRow({
+                children: [
+                  new TableCell({
+                    columnSpan: 4,
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${bankAmountTotal}/-`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${bankAmountCAD}`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            );
+          }
+        });
+        lastPages.push({
+          headers: {
+            default: new Header({
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new ImageRun({
+                      data: headerImage,
+                      floating: {
+                        allowOverlap: true,
+                        horizontalPosition: {
+                          align: HorizontalPositionAlign.CENTER,
+                        },
+                        verticalPosition: {
+                          align: VerticalPositionAlign.CENTER,
+                        },
+                        behindDocument: true,
+                      },
+                      transformation: {
+                        width: 600,
+                        height: 1000,
+                      },
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          },
+          children: [
+            new Paragraph({
+              spacing: { after: 1800, before: 1800 },
+              children: [
+                new TextRun({
+                  text: "",
+                }),
+              ],
+            }),
+            //reg no
+            new Paragraph({
+              spacing: { after: 200 },
+              children: [
+                new TextRun({
+                  text: `           ${reg_no[i + 1][0]}${reg_no[i][1]}`,
+                  color: "#4D734E",
+                }),
+                new TextRun({
+                  text: ` ${reg_no[i + 1].slice(2)}`,
+                }),
+              ],
+            }),
+            new Table({
+              alignment: AlignmentType.CENTER,
+              margins: { right: 80, left: 80, top: 80, bottom: 80 },
+              width: { size: 95, type: WidthType.PERCENTAGE },
+              layout: TableLayoutType.FIXED,
+              rows: [
+                new TableRow({
+                  tableHeader: true,
+                  children: [
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "SL No.",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 5, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Particular of Assets",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 30, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Account Type",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Source",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Value Of BDT",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: `Value in CAD(1 CAD-${
+                                CAD.convertionRate
+                              } BDT) in ${format(
+                                new Date(CAD.date),
+                                "dd/MM/yyyy",
+                              )}`,
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                  ],
+                }),
+                ...allTablePages[i],
+              ],
+            }),
+          ],
+        });
+      }
+      if (bankDataPage.length - 1 === 0) {
+        allTablePages[0].push(
+          new TableRow({
+            children: [
+              new TableCell({
+                columnSpan: 4,
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: "Total",
+                        bold: true,
+                      }),
+                    ],
+                    spacing: { after: 100, before: 100 },
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: `${bankAmountTotal}/-`,
+                        bold: true,
+                      }),
+                    ],
+                    spacing: { after: 100, before: 100 },
+                  }),
+                ],
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: `${bankAmountCAD}`,
+                        bold: true,
+                      }),
+                    ],
+                    spacing: { after: 100, before: 100 },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        );
+      }
+    });
+    const getFundTableRows = () => {
+      return [
+        {
+          headers: {
+            default: new Header({
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new ImageRun({
+                      data: headerImage,
+                      floating: {
+                        allowOverlap: true,
+                        horizontalPosition: {
+                          align: HorizontalPositionAlign.CENTER,
+                        },
+                        verticalPosition: {
+                          align: VerticalPositionAlign.CENTER,
+                        },
+                        behindDocument: true,
+                      },
+                      transformation: {
+                        width: 600,
+                        height: 1000,
+                      },
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          },
+          children: [
+            new Paragraph({
+              spacing: { after: 1800, before: 1800 },
+              children: [
+                new TextRun({
+                  text: "",
+                }),
+              ],
+            }),
+            //reg no
+            new Paragraph({
+              children: [
+                new TextRun({
+                  // reg 2
+                  text: `           ${reg_no[1][0]}`,
+                  color: "#4D734E",
+                }),
+                new TextRun({
+                  text: `${reg_no[1][1]}`,
+                  color: "#4D734E",
+                }),
+                new TextRun({
+                  text: ` ${reg_no[1].slice(2)}`,
+                }),
+              ],
+            }),
+            new Paragraph({
+              spacing: { before: 400, after: 100 },
+              children: [
+                new TextRun({
+                  text: "          source of income declaration:",
+                  bold: true,
+                  allCaps: true,
+                  size: 20,
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `          ${bankSourceList[0]} .`,
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `          From there I got arount ${bankAmountTotal} BDT which turns ${bankAmountCAD} CAD amount of money.`,
+                }),
+              ],
+            }),
+            new Paragraph({
+              spacing: { before: 200 },
+              children: [
+                new TextRun({
+                  text: "          As a result, all these sources, I accumulated this money over time and deposited that sum in the ",
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "          following given bank account ",
+                }),
+              ],
+            }),
+            new Paragraph({
+              spacing: { after: 100 },
+              children: [
+                new TextRun({
+                  text: "          Here below a summary of my liquid asset is given- ",
+                }),
+              ],
+            }),
+            new Table({
+              alignment: AlignmentType.CENTER,
+              margins: { right: 80, left: 80, top: 80, bottom: 80 },
+              width: { size: 95, type: WidthType.PERCENTAGE },
+              layout: TableLayoutType.FIXED,
+              rows: [
+                new TableRow({
+                  tableHeader: true,
+                  children: [
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "SL No.",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 5, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Particular of Assets",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 30, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Account Type",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Source",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: "Value Of BDT",
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new TextRun({
+                              text: `Value in CAD(1 CAD-${
+                                CAD.convertionRate
+                              } BDT) in ${format(
+                                new Date(CAD.date),
+                                "dd/MM/yyyy",
+                              )}`,
+                              bold: true,
+                              size: 20,
+                            }),
+                          ],
+                        }),
+                      ],
+                      verticalAlign: VerticalAlign.CENTER,
+                      width: { size: 15, type: WidthType.PERCENTAGE },
+                    }),
+                  ],
+                }),
+                ...allTablePages[0],
+              ],
+            }),
+          ],
+        },
+        //bank calculation send row 2nd
+        ...lastPages,
+      ];
+    };
+    affidavit.push(
+      //first page
+      {
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new ImageRun({
+                    data: headerImage,
+                    floating: {
+                      allowOverlap: true,
+                      horizontalPosition: {
+                        align: HorizontalPositionAlign.CENTER,
+                      },
+                      verticalPosition: {
+                        align: VerticalPositionAlign.CENTER,
+                      },
+                      behindDocument: true,
+                    },
+                    transformation: {
+                      width: 600,
+                      height: 1000,
+                    },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children: [
+          //header speace
+          new Paragraph({
+            spacing: { after: 1800, before: 1800 },
+            children: [
+              new TextRun({
+                text: "",
+              }),
+            ],
+          }),
+          //reg no
+          new Paragraph({
+            children: [
+              new TextRun({
+                // reg 1
+                text: `           ${reg_no[0].slice(0, 2)}`,
+                color: "#4D734E",
+              }),
+              new TextRun({
+                text: ` ${reg_no[0].slice(2)}`,
+              }),
+            ],
+          }),
+          //tittle
+          new Paragraph({
+            spacing: { before: 200 },
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `              before the notary public, Dhaka Bangladesh `,
+                bold: true,
+                allCaps: true,
+                size: 20,
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `    affidavit of financial support for ${oneData.information?.first_name} ${oneData.information?.last_name}'s financial`,
+                bold: true,
+                allCaps: true,
+                size: 20,
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: "        costs during his stay in Canada for 1 year study period",
+                bold: true,
+                allCaps: true,
+                size: 20,
+              }),
+            ],
+          }),
+          //bio section
+          new Paragraph({
+            spacing: { before: 250 },
+            children: [
+              new TextRun({
+                text: "                        1. ",
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: "Name-",
+                size: 20,
+              }),
+              new TextRun({
+                text: `${oneData.information?.first_name} ${oneData.information?.last_name}`,
+                bold: true,
+                size: 20,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "                            Date of birth- ",
+              }),
+              new TextRun({
+                text: `${
+                  oneData.information?.dob
+                    ? format(new Date(oneData.information?.dob), "dd/MM/yyyy")
+                    : ""
+                }`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "                            Hometown address- ",
+              }),
+              new TextRun({
+                text: `${oneData.information?.permanent_upazila || ""}`,
+              }),
+              new TextRun({
+                text: `, ${oneData.information?.permanent_district || ""}`,
+              }),
+              new TextRun({
+                text: `, ${oneData.information?.permanent_postal_code || ""}`,
+              }),
+              new TextRun({
+                text: `, ${oneData.information?.permanent_city || ""}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "                            Present address- ",
+              }),
+              new TextRun({
+                text: `${oneData.information?.present_upazila || ""}`,
+              }),
+              new TextRun({
+                text: `, ${oneData.information?.present_district || ""}`,
+              }),
+              new TextRun({
+                text: `, ${oneData.information?.present_postal_code || ""}`,
+              }),
+              new TextRun({
+                text: `, ${oneData.information?.present_city || ""}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "                            Nationality by born- ",
+              }),
+              new TextRun({
+                text: `${nationality}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "                            NID card number- ",
+              }),
+              new TextRun({
+                text: `${oneData.information?.nid?.number}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "                            Relation with the main applicant- ",
+              }),
+              new TextRun({
+                text: `${
+                  oneData.information?.inauguration_user?.relation || undefined
+                }`,
+              }),
+            ],
+          }),
+          //details paragraph section one
+          new Paragraph({
+            spacing: { before: 300 },
+            children: [
+              new TextRun({
+                text: "          1. ",
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: `${oneData.information?.first_name} ${oneData.information?.last_name}`,
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` (nid no ${oneData.information?.nid?.number}) `,
+              }),
+              new TextRun({
+                text: `${oneData.information?.inauguration_user?.relation} of `,
+              }),
+              new TextRun({
+                text: `${client.first_name} ${client.last_name}, `,
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: `I'm sponsoring ${client.first_name} ${client.last_name}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          for financial cost which is required in ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].country
+                    : "____"
+                } during the one academic year study period into the  `,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `         ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].university_name
+                    : "____"
+                }  for a {{graduate certificate}} in {{subject name}} program for the`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `         ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].program_name
+                    : "____"
+                }  intake.`,
+              }),
+            ],
+          }),
+          //sponsor tittle
+          new Paragraph({
+            spacing: { before: 200 },
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `              sponsor- ${oneData.information?.first_name} ${oneData.information?.last_name}`,
+                bold: true,
+                allCaps: true,
+                size: 20,
+              }),
+            ],
+          }),
+          //paragrap sponsor
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "          Respected Sir,",
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "          This is to certify that I am ",
+              }),
+              new TextRun({
+                text: `${oneData.information?.first_name} ${oneData.information?.last_name}`,
+                bold: true,
+                allCaps: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` born on ${format(
+                  new Date(oneData.information?.dob || ""),
+                  "dd/MM/yyyy",
+                )}. `,
+              }),
+              new TextRun({
+                text: "I do hereby solemnly affirm and ",
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "          declare as follows: ",
+              }),
+            ],
+          }),
+          //list of sponsor details
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `                         1. That I am born ${nationality} citizen & permanent resident of ${oneData.information?.permanent_country}.`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `                         2. My sponsor ${
+                  client.first_name
+                } ${client.last_name} has been accepted into the ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].university_name
+                    : "____"
+                }  `,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `                         for ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].details
+                    : "____"
+                }  in ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].program_name
+                    : "____"
+                }  program for the ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].year
+                    : "____"
+                }  intake`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 150 },
+            children: [
+              new TextRun({
+                text: `                         3.  Hereby, I am sponsoring the cost from my available liquid fund which is required for my `,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `                         sponsor during his academic year in ${
+                  oneData.information?.university &&
+                  oneData.information.university.length > 0
+                    ? oneData.information.university[
+                        oneData.information.university.length - 1
+                      ].country
+                    : "____"
+                } .`,
+              }),
+            ],
+          }),
+          //source of income declaration
+          new Paragraph({
+            spacing: { before: 400, after: 200 },
+            children: [
+              new TextRun({
+                text: "          source of income declaration:",
+                bold: true,
+                allCaps: true,
+                size: 20,
+              }),
+            ],
+          }),
+          //paragrap of calculation
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          To begin with, I'd like to clarify my source of income for the fund which I will sponsor to ${client.first_name}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          ${client.last_name}. I'm providing pertinent details about it here. Currently, I'm owner of `,
+              }),
+              new TextRun({
+                text: `${propertyTypeList.length} flats/appartments`,
+                bold: true,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          located in ${propertyAddressList}.`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          From this apartments, I recived a rental handsome amount per month ${totalMonthRent} BDT which turns `,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          (${totalMonthRentCAD} CAD), (${totalMonthRent} * 12)  ${totalYearRent} BDT (${totalYearRentCAD} CAD),`,
+              }),
+              new TextRun({
+                text: " Annually.",
+                bold: true,
+              }),
+            ],
+          }),
+        ],
+      },
+      //bank calculation page
+      ...getFundTableRows(),
+      //verification page
+      {
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new ImageRun({
+                    data: headerImage,
+                    floating: {
+                      allowOverlap: true,
+                      horizontalPosition: {
+                        align: HorizontalPositionAlign.CENTER,
+                      },
+                      verticalPosition: {
+                        align: VerticalPositionAlign.CENTER,
+                      },
+                      behindDocument: true,
+                    },
+                    transformation: {
+                      width: 600,
+                      height: 1000,
+                    },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children: [
+          //header speace
+          new Paragraph({
+            spacing: { after: 1800, before: 1800 },
+            children: [
+              new TextRun({
+                text: "",
+              }),
+            ],
+          }),
+          //reg no
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `           ${reg_no[pageLength + 1][0]}`,
+                color: "#4D734E",
+              }),
+              new TextRun({
+                text: `${reg_no[pageLength + 1][1]}`,
+                color: "#4D734E",
+              }),
+              new TextRun({
+                text: ` ${reg_no[pageLength + 1].slice(2)}`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 400 },
+            children: [
+              new TextRun({
+                text: "          Please review the following documents for further information on the fund for all sponsors: ",
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 70 },
+            children: [
+              new TextRun({
+                text: "                    CA valuation certificate",
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 500, after: 300 },
+            children: [
+              new TextRun({
+                text: "verification",
+                bold: true,
+                allCaps: true,
+                size: 22,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          What has been stated above in this affidavit is true to the best of my knowledge as well as belief `,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `          and we sign this verification in the day of ${format(
+                  new Date(),
+                  "dd/MM/yyyy",
+                )} in the office of the notary public, Dhaka,`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `           Bangladesh.`,
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 400 },
+            children: [
+              new TextRun({
+                text: "          Signature of primary deponent",
+                bold: true,
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.END,
+            spacing: { before: 1000 },
+            children: [
+              new TextRun({
+                text: "This deponent is known to me and indentified legally by me and",
+              }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.END,
+            children: [
+              new TextRun({
+                text: "there has signed in my presence.",
+              }),
+            ],
+          }),
+        ],
+      },
+    );
+  }
+  const affidavit_docx = new Document({
+    sections: affidavit,
+  });
+  // Packer.toBlob(affidavit_docx).then((blob) => {
+  //   saveAs(blob, `a.docx`);
+  // });
+};

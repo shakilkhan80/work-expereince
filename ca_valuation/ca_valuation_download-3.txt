@@ -1,0 +1,1560 @@
+import { TAdminCaValuation, TCAD, TCaValuation } from "@/types";
+import axios from "axios";
+import { format } from "date-fns";
+import {
+  AlignmentType,
+  BorderStyle,
+  Document,
+  ImageRun,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableRow,
+  TextRun,
+  UnderlineType,
+  VerticalAlign,
+  WidthType,
+} from "docx";
+import { saveAs } from "file-saver";
+import { ca_valuation } from "../data";
+
+export const DownloadCaValuation = async ({
+  caData,
+  userData,
+  CAD,
+}: {
+  caData: TCaValuation;
+  userData: TAdminCaValuation;
+  CAD: TCAD;
+}) => {
+  let data = [];
+  for (const updatedData of caData) {
+    const propertyCount = updatedData?.property.map((p) => p.property_type);
+    const propertyRent = updatedData?.property.map((p) => p.rent || 0);
+
+    const propertyRentOfAll = propertyRent?.reduce(
+      (prev, sum) => prev + sum,
+      0,
+    );
+    const propertyRentAvg = propertyRentOfAll / propertyCount.length;
+
+    const totalMonthRent = propertyCount.length * propertyRentAvg;
+    const totalMonthRentCAD = (totalMonthRent / CAD.convertionRate).toFixed(2);
+
+    const totalYearRent = totalMonthRent * 12;
+    const totalYearRentCAD = (totalYearRent / CAD.convertionRate).toFixed(2);
+
+    //property value total
+    const propertyValueBDT = updatedData?.property
+      .map((p) => p.value || 0)
+      .reduce((prev, sum) => prev + sum, 0);
+    const propertyValueCAD = (propertyValueBDT / CAD.convertionRate).toFixed(2);
+
+    //property value total
+    const bankValueBDT = updatedData?.bank
+      .map((p) => p.amount || 0)
+      .reduce((prev, sum) => prev + sum, 0);
+    const bankValueCAD = (bankValueBDT / CAD.convertionRate).toFixed(2);
+
+    //total value
+    const totalValueBDT = propertyValueBDT + bankValueBDT;
+    const totalValueCAD = (totalValueBDT / CAD.convertionRate).toFixed(2);
+
+    const propertyData = updatedData?.property.map((p, index) => {
+      return new TableRow({
+        children: [
+          //sl
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${index + 1}.`,
+                    size: 20,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //property type
+          new TableCell({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${p.property_type ?? undefined}/- `,
+                    bold: true,
+                    underline: { color: "#030100", type: UnderlineType.SINGLE },
+                    size: 20,
+                  }),
+                ],
+                spacing: { before: 100 },
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `${updatedData?.information?.first_name ?? ""} ${
+                      updatedData?.information?.last_name ?? ""
+                    }`.toUpperCase(),
+                    bold: true,
+                    size: 20,
+                  }),
+                  new TextRun({
+                    text: ` is the owner of ${
+                      p.size
+                    } ${p.property_type?.toLowerCase()}  which is located at: ${
+                      p.address
+                    }`,
+                  }),
+                ],
+                spacing: { before: 200, after: 100 },
+              }),
+            ],
+            verticalAlign: VerticalAlign.CENTER,
+          }),
+          //source
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: p.source ?? undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //value
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${p.value?.toString()}/-` ?? undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //cad
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: p.value
+                      ? (p.value / CAD.convertionRate).toFixed(3).toString()
+                      : undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+    });
+    const bankData = updatedData?.bank.map((p, index) => {
+      return new TableRow({
+        children: [
+          //sl
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${index + 1}.`,
+                    size: 20,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //account type details
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: "",
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${p.account_type ?? undefined}:- `,
+                    bold: true,
+                    underline: { color: "#030100", type: UnderlineType.SINGLE },
+                    size: 20,
+                  }),
+                ],
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Account Name: ",
+                    size: 24,
+                  }),
+                  new TextRun({
+                    text: `${updatedData?.information?.first_name ?? ""} ${
+                      updatedData?.information?.last_name ?? ""
+                    }`.toUpperCase(),
+                    bold: true,
+                    size: 18,
+                  }),
+                  new TextRun({
+                    text: ` A/C No: ${
+                      p.account_no
+                    } ${p.bank_name?.toLowerCase()} ${p.branch_name}`,
+                  }),
+                ],
+                spacing: { before: 100, after: 100 },
+              }),
+              new Paragraph({
+                text: "",
+              }),
+            ],
+            verticalAlign: VerticalAlign.CENTER,
+          }),
+          //account type start
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: p.account_type ?? undefined,
+                    bold: true,
+                    size: 24,
+                  }),
+                ],
+                spacing: { before: 200, after: 100 },
+              }),
+
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `Starting From:   ( ${format(
+                      new Date(p.starting_from || new Date()),
+                      "dd/MM/yyyy",
+                    )} )`,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //source
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: p.source ?? undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //amount
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${p.amount?.toString()}/-` ?? undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //cad
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: p.amount
+                      ? (p.amount / CAD.convertionRate).toFixed(3).toString()
+                      : undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+    });
+    const incomeData = updatedData?.income.map((p, index) => {
+      return new TableRow({
+        children: [
+          //sl
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${index + 1}.`,
+                    size: 20,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //property type
+          new TableCell({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: "Income From Rent/-",
+                    bold: true,
+                    underline: { color: "#030100", type: UnderlineType.SINGLE },
+                    size: 20,
+                  }),
+                ],
+                spacing: { before: 100 },
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `${updatedData?.information?.first_name ?? ""} ${
+                      updatedData?.information?.last_name ?? ""
+                    }`.toUpperCase(),
+                    bold: true,
+                    size: 20,
+                  }),
+                  new TextRun({
+                    text: ` gets rental income money from his ${propertyCount?.length} `,
+                    size: 24,
+                  }),
+                  new TextRun({
+                    text: "FLAT/APARTMENTS",
+                    size: 16,
+                  }),
+                  new TextRun({
+                    text: " per month ",
+                    size: 24,
+                  }),
+                  new TextRun({
+                    text: ` (${totalMonthRent})  `,
+                    size: 20,
+                  }),
+                  new TextRun({
+                    text: "BDT ",
+                    size: 16,
+                  }),
+                  new TextRun({
+                    text: " which turns ",
+                    size: 24,
+                  }),
+                  new TextRun({
+                    text: `(${totalMonthRentCAD})`,
+                    size: 20,
+                  }),
+                  new TextRun({
+                    text: " CAD, ",
+                    size: 16,
+                  }),
+                  new TextRun({
+                    text: "Annually",
+                    bold: true,
+                    size: 20,
+                  }),
+                  new TextRun({
+                    text: `(${totalMonthRent * 12})`,
+                    size: 20,
+                  }),
+                  new TextRun({
+                    text: "  BDT  ",
+                    size: 16,
+                  }),
+                  new TextRun({
+                    text: `(${totalYearRentCAD})`,
+                    size: 16,
+                  }),
+                  new TextRun({
+                    text: "  CAD , ",
+                    size: 16,
+                  }),
+                ],
+                spacing: { before: 200, after: 100 },
+              }),
+            ],
+            verticalAlign: VerticalAlign.CENTER,
+          }),
+          //source
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: p.source ?? undefined,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //value
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${totalYearRent}/-`,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          //cad
+          new TableCell({
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `${totalYearRentCAD}`,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+    });
+    const { data: headerImage } = await axios.get("/ca/tittle.png", {
+      responseType: "arraybuffer",
+    });
+    const { data: footerImage } = await axios.get("/ca/footer.png", {
+      responseType: "arraybuffer",
+    });
+
+    data.push(
+      //property section
+      {
+        headers: {
+          default: {
+            options: {
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new ImageRun({
+                      data: headerImage,
+                      transformation: {
+                        width: 600,
+                        height: 100,
+                      },
+                    }),
+                  ],
+                }),
+              ],
+            },
+          },
+        },
+        footers: {
+          default: {
+            options: {
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new ImageRun({
+                      data: footerImage,
+                      transformation: {
+                        width: 600,
+                        height: 100,
+                      },
+                    }),
+                  ],
+                }),
+              ],
+            },
+          },
+        },
+        children: [
+          //first tittle
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: "Valuation Certificate",
+                bold: true,
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          //1st block
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `This is to certify that the valuation Certificate to the property ( Land & Flat / Building ) is issued to `,
+                size: 24,
+              }),
+              new TextRun({
+                text: `${userData.first_name}`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` ${userData.last_name}`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ", Father: ",
+                size: 24,
+              }),
+              new TextRun({
+                text: (userData?.father_name ?? "").toUpperCase(),
+                size: 20,
+                bold: true,
+              }),
+              new TextRun({
+                text: ", holding a Bangladeshi Passport: ",
+                size: 24,
+              }),
+              new TextRun({
+                text: `${userData.passport_no ?? ""}`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: " and his Permanent address: ",
+                size: 24,
+              }),
+              new TextRun({
+                text: ` ${userData?.permanent_upazila ?? ""} ${
+                  userData?.permanent_city ?? ""
+                } ${userData?.permanent_country ?? ""}`,
+                size: 24,
+              }),
+              new TextRun({
+                text: ", and Present address: ",
+                size: 24,
+              }),
+              new TextRun({
+                text: ` ${userData?.permanent_upazila ?? ""} ${
+                  userData?.permanent_city ?? ""
+                } ${userData?.permanent_country ?? ""}`,
+                size: 24,
+              }),
+              new TextRun({
+                text: " as the owner of the properties i Bangladesh mentioned below.",
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: " ",
+          }),
+          //2nd block
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "After detail and careful study of all the relevant documents provided by the client, along with the examination of ownership papers, cadastral maps, inspection of site followed by the detail measurement of site and considering prevailing norms: ",
+                size: 24,
+              }),
+              new TextRun({
+                text: `${ca_valuation.company_name}.`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: " certify the fair market value of the mentioned property owned by: ",
+                size: 24,
+              }),
+              new TextRun({
+                text: `${updatedData?.information?.first_name ?? ""} ${
+                  updatedData?.information?.last_name ?? ""
+                }`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` ( ${updatedData?.information?.inauguration_user?.relation.toUpperCase()} OF ${
+                  userData.first_name ?? ""
+                } ${userData.last_name ?? ""} ),`.toUpperCase(),
+                size: 20,
+                bold: true,
+              }),
+              new TextRun({
+                text: ` on the  ${format(new Date(), "dd/MM/yyyy")}`,
+                size: 24,
+              }),
+              new TextRun({
+                text: " as follows: ",
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          //border block
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: "Details of Assets/ Properties / Financial Position",
+                size: 28,
+                bold: true,
+                underline: { type: UnderlineType.SINGLE, color: "#060706" },
+                border: {
+                  size: 10,
+                  style: BorderStyle.SINGLE,
+                  color: "#060706",
+                  space: 10,
+                },
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          //list block
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `section one-fixed asset`.toUpperCase(),
+                underline: { type: UnderlineType.SINGLE },
+                bold: true,
+                size: 26,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          //list tittle block
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "A) ",
+                bold: true,
+                size: 24,
+              }),
+              new TextRun({
+                text: "Value of the immovable properties of ",
+                size: 24,
+              }),
+              new TextRun({
+                text: `${updatedData?.information?.first_name ?? ""} ${
+                  updatedData?.information?.last_name ?? ""
+                }`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` ( ${updatedData?.information?.inauguration_user?.relation.toUpperCase()} OF ${
+                  userData.first_name ?? ""
+                } ${userData.last_name ?? ""} ),`.toUpperCase(),
+                size: 20,
+                bold: true,
+              }),
+              new TextRun({
+                text: " are given below: ",
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          //table block
+          new Table({
+            margins: { right: 100, left: 100 },
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            rows: [
+              new TableRow({
+                tableHeader: true,
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "SL No.",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 10, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Particular of Assets",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 40, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Source",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Value Of BDT",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `Value in CAD(1 CAD-${
+                              CAD.convertionRate
+                            } BDT) in ${format(
+                              new Date(CAD.date),
+                              "dd/MM/yyyy",
+                            )}`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+              ...propertyData,
+              new TableRow({
+                children: [
+                  new TableCell({
+                    columnSpan: 3,
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total Immovable Assets",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${propertyValueBDT}/-`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${propertyValueCAD}`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      },
+      //bank section
+      {
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `section two-liquid asset`.toUpperCase(),
+                underline: { type: UnderlineType.SINGLE },
+                bold: true,
+                size: 26,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "B) ",
+                bold: true,
+                size: 24,
+              }),
+              new TextRun({
+                text: "The value of the movable properties of ",
+                size: 24,
+              }),
+              new TextRun({
+                text: `${updatedData?.information?.first_name ?? ""} ${
+                  updatedData?.information?.last_name ?? ""
+                }`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` ( ${updatedData?.information?.inauguration_user?.relation.toUpperCase()} OF ${
+                  userData.first_name ?? ""
+                } ${userData.last_name ?? ""} ),`.toUpperCase(),
+                size: 20,
+                bold: true,
+              }),
+              new TextRun({
+                text: " are given below: ",
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          new Table({
+            margins: { right: 100, left: 100 },
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            rows: [
+              new TableRow({
+                tableHeader: true,
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "SL No.",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 5, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Particular of Assets",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 35, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Account Type",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Source",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Value Of BDT",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `Value in CAD(1 CAD-${
+                              CAD.convertionRate
+                            } BDT) in ${format(
+                              new Date(CAD.date),
+                              "dd/MM/yyyy",
+                            )}`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+              ...bankData,
+              new TableRow({
+                children: [
+                  new TableCell({
+                    columnSpan: 4,
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total Movable Assets",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${bankValueBDT}/-`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${bankValueCAD}`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      },
+      //income section
+      {
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `section three-source of income`.toUpperCase(),
+                underline: { type: UnderlineType.SINGLE },
+                bold: true,
+                size: 26,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "C) ",
+                bold: true,
+                size: 24,
+              }),
+              new TextRun({
+                text: " Source of income of ",
+                size: 24,
+              }),
+              new TextRun({
+                text: `${updatedData?.information?.first_name ?? ""} ${
+                  updatedData?.information?.last_name ?? ""
+                }`.toUpperCase(),
+                bold: true,
+                size: 20,
+              }),
+              new TextRun({
+                text: ` ( ${updatedData?.information?.inauguration_user?.relation.toUpperCase()} OF ${
+                  userData.first_name ?? ""
+                } ${userData.last_name ?? ""} ) , `.toUpperCase(),
+                size: 20,
+                bold: true,
+              }),
+              new TextRun({
+                text: " are given below:  ",
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({
+            text: "",
+          }),
+          new Table({
+            margins: { right: 100, left: 100 },
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            rows: [
+              new TableRow({
+                tableHeader: true,
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "SL No.",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 10, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Particular of Assets",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 40, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Source",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Value Of BDT",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `Value in CAD(1 CAD-${
+                              CAD.convertionRate
+                            } BDT) in ${format(
+                              new Date(CAD.date),
+                              "dd/MM/yyyy",
+                            )}`,
+                            bold: true,
+                            size: 15,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+              ...incomeData,
+              new TableRow({
+                children: [
+                  new TableCell({
+                    columnSpan: 3,
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total Rent Income",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${totalYearRent}/-`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${totalYearRentCAD}`,
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { after: 100, before: 100 },
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      },
+      //total section
+      {
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `section four-summary of the all properties (based on section one and section two)`.toUpperCase(),
+                bold: true,
+                size: 26,
+              }),
+            ],
+            spacing: { before: 200, after: 200 },
+          }),
+
+          new Table({
+            margins: { right: 100, left: 100 },
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Section Name",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Details",
+                            bold: true,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Value Of BDT",
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `Value in CAD(1 CAD-${
+                              CAD.convertionRate
+                            } BDT) in ${format(
+                              new Date(CAD.date),
+                              "dd/MM/yyyy",
+                            )}`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total Immoveable Assets",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "A",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${propertyValueBDT}/-`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${propertyValueCAD}`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total Moveable Assets",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "B",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${bankValueBDT}/-`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${bankValueCAD}`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "Total Moveable And Immoveable Assets",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: "A + B",
+                            bold: true,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${totalValueBDT}/-`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: `${totalValueCAD}`,
+                            bold: true,
+                            size: 20,
+                          }),
+                        ],
+                        spacing: { before: 200, after: 200 },
+                      }),
+                    ],
+                    verticalAlign: VerticalAlign.CENTER,
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      },
+    );
+  }
+  const ca_valuation_docx = new Document({
+    sections: data,
+  });
+  Packer.toBlob(ca_valuation_docx).then((blob) => {
+    saveAs(blob, `a.docx`);
+  });
+};

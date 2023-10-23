@@ -1,0 +1,209 @@
+import birthTemplate from "@/../public/image-templates/birthTemplate.png";
+import GenerateCertificate from "@/components/course-certificate/generate";
+import { generateClientFile } from "@/lib/generate-docx/clientFile";
+import { getImg } from "@/lib/image";
+import { api } from "@/trpc/client";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import GenerateCV from "../cv/generate";
+import { NidDivRef } from "../nid/nidDivRef";
+
+const DownloadClientFile = ({
+  clientId,
+  onClose,
+}: {
+  clientId: string;
+  onClose: () => void;
+}) => {
+  const nidRef = useRef<HTMLInputElement>(null);
+  const [nidOutput, setNidOutput] = useState<string | undefined>();
+  const nidTranslateRef = useRef<HTMLInputElement>(null);
+  const [nidTranslateOutput, setNidTranslateOutput] = useState<
+    string | undefined
+  >(undefined);
+  const [generatedCertificate, setGeneratedCertificate] = useState<
+    string[] | undefined
+  >(undefined);
+  const [generatedCV, setGeneratedCV] = useState<string | undefined>(undefined);
+  const birthRef = useRef<HTMLInputElement>(null);
+  const [birthOutput, setBirthOutput] = useState<string | undefined>();
+  const utils = api.useUtils();
+  let data = utils.files.getClientFileData.getData(clientId);
+  if (data?.information) {
+    data = {
+      ...data,
+      information: {
+        ...data.information,
+        birth_certificate: {
+          ...data.information.birth_certificate!,
+          image:
+            utils.getCdnImgLink
+              .getData(data?.information?.birth_certificate?.image)
+              ?.map((img) => img || "") || [],
+        },
+        police_clearance:
+          utils.getCdnImgLink
+            .getData(data?.information?.police_clearance)
+            ?.map((img) => img || "") || [],
+        nid: {
+          ...data.information.nid!,
+          image:
+            utils.getCdnImgLink
+              .getData(data?.information?.nid?.image)
+              ?.map((img) => img || "") || [],
+        },
+        english_certificate:
+          utils.getCdnImgLink
+            .getData(data.information.english_certificate)
+            ?.map((img) => img || "") || [],
+        other_certificate:
+          utils.getCdnImgLink
+            .getData(data.information.other_certificate)
+            ?.map((img) => img || "") || [],
+
+        academic:
+          data.information.academic.length > 0
+            ? data.information.academic?.map((aca) => {
+                return {
+                  ...aca,
+                  certificate:
+                    utils.getCdnImgLink
+                      .getData(aca.certificate)
+                      ?.map((img) => img || "") || [],
+                  transcript:
+                    utils.getCdnImgLink
+                      .getData(aca.transcript)
+                      ?.map((img) => img || "") || [],
+                };
+              })
+            : data.information.academic,
+      },
+    };
+  }
+  useEffect(() => {
+    const myFun = async () => {
+      const imgs = await Promise.all([
+        getImg(nidRef),
+        getImg(nidTranslateRef),
+        getImg(birthRef),
+      ]);
+
+      setNidOutput(imgs[0]);
+      setNidTranslateOutput(imgs[1]);
+      setBirthOutput(imgs[2]);
+    };
+    myFun();
+  }, [data?.information]);
+
+  useEffect(() => {
+    if (data && nidOutput && nidTranslateOutput && birthOutput && generatedCV) {
+      if (data.information?.CourseCertificateData.length !== 0) {
+        if (
+          data.information?.CourseCertificateData.length ===
+          generatedCertificate?.length
+        ) {
+          generateClientFile({
+            data,
+            nid: nidOutput,
+            nidTranslate: nidTranslateOutput,
+            birthImage: birthOutput,
+            generatedCertificate,
+            generatedCV,
+          });
+          setNidOutput(undefined);
+          setNidTranslateOutput(undefined);
+          setBirthOutput(undefined);
+          setGeneratedCertificate(undefined);
+          setGeneratedCV(undefined);
+          onClose();
+        }
+      } else {
+        generateClientFile({
+          data,
+          nid: nidOutput,
+          nidTranslate: nidTranslateOutput,
+          birthImage: birthOutput,
+          generatedCertificate,
+          generatedCV,
+        });
+        setNidOutput(undefined);
+        setNidTranslateOutput(undefined);
+        setBirthOutput(undefined);
+        setGeneratedCertificate(undefined);
+        onClose();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nidOutput, nidTranslateOutput, birthOutput, generatedCV]);
+  return (
+    <div className="opacity-0">
+      {/* nid files */}
+      <div
+        ref={nidRef}
+        className="flex h-[2333px] w-[1651px] flex-col items-center space-y-6 overflow-hidden"
+      >
+        {data &&
+          data?.information?.nid?.image.map((imgUrl, index) => {
+            return (
+              <Image
+                className="w-1/2 object-contain"
+                src={imgUrl || ""}
+                alt="nid"
+                width={600}
+                height={600}
+                key={index}
+              />
+            );
+          })}
+      </div>
+      {/* nid translation */}
+      <NidDivRef
+        imageRef={nidTranslateRef}
+        user={{
+          blood_group: data?.information?.blood_group,
+          dob: data?.information?.dob,
+          father_name: data?.information?.father_name,
+          mother_name: data?.information?.mother_name,
+          name:
+            data?.information?.first_name + " " + data?.information?.last_name,
+          nid_doi: data?.information?.nid?.doi,
+          nid_image: data?.information?.nid?.image,
+          nid_no: data?.information?.nid?.number,
+          permanent_city: data?.information?.permanent_city,
+          permanent_country: data?.information?.permanent_country,
+          permanent_district: data?.information?.permanent_district,
+          permanent_upazila: data?.information?.permanent_upazila,
+        }}
+      />
+      {/* birth certificate */}
+      <div
+        className="relative h-[2333px] w-[1651px] overflow-hidden border-[6px] border-foreground/40"
+        ref={birthRef}
+      >
+        <Image
+          src={birthTemplate}
+          alt="birth"
+          className="h-[2333px] w-[1651px] object-cover"
+        />
+      </div>
+      {data?.information?.CourseCertificateData.map((c, index) => {
+        return (
+          <GenerateCertificate
+            key={index}
+            setGeneratedCertificate={setGeneratedCertificate}
+            data={c}
+            client={data!}
+          />
+        );
+      })}
+      {data?.information?.id && (
+        <GenerateCV
+          clientId={data?.information?.id}
+          setGeneratedCV={setGeneratedCV}
+        />
+      )}
+    </div>
+  );
+};
+
+export default DownloadClientFile;
