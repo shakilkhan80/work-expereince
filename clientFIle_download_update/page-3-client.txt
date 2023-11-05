@@ -1,0 +1,307 @@
+import birthTemplate from "@/../public/image-templates/birthTemplate.png";
+import GenerateCV from "@/components/admin/cv/generate";
+import { NidDivRef } from "@/components/admin/nid/nidDivRef";
+import GenerateCertificate from "@/components/course-certificate/generate";
+import { useClientFileStore } from "@/hooks/clientFile";
+import { generateClientFile } from "@/lib/generate-docx/clientFile";
+import { getImg } from "@/lib/image";
+import { api } from "@/trpc/client";
+import { TFullClientData } from "@/types";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+
+const DownloadClientFile = ({
+  applicationId,
+  onClose,
+  setClientStatusId,
+}: {
+  applicationId: string;
+  onClose: () => void;
+  setClientStatusId: React.Dispatch<React.SetStateAction<string | undefined>>;
+}) => {
+  const nidRef = useRef<HTMLInputElement>(null);
+  const nidTranslateRef = useRef<HTMLInputElement>(null);
+  const [generatedCertificate, setGeneratedCertificate] = useState<
+    string[] | undefined
+  >(undefined);
+  const [generatedCV, setGeneratedCV] = useState<string | undefined>(undefined);
+  const [updatedData, setUpdatedData] = useState<TFullClientData | undefined>(
+    undefined,
+  );
+  const birthRef = useRef<HTMLInputElement>(null);
+  const utils = api.useUtils();
+  const status = useClientFileStore();
+
+  const { data, isError, error } =
+    api.files.getClientFileData.useQuery(applicationId);
+
+  if (isError) {
+    throw new Error(error.message);
+  }
+
+  const dataFun = async () => {
+    if (data) {
+      const updateData = {
+        ...data,
+        user: {
+          ...data.user,
+          information: {
+            ...data.user.information!,
+            birth_certificate: {
+              ...data.user.information?.birth_certificate!,
+              image: await Promise.all(
+                (
+                  (await utils.getCdnImgLink.ensureData(
+                    data.user.information?.birth_certificate?.image,
+                  )) || []
+                ).map(async (img) => {
+                  const res = await axios.get(img!, {
+                    responseType: "arraybuffer",
+                  });
+                  return res.data as string;
+                }),
+              ),
+            },
+            nid: {
+              ...data.user.information?.nid!,
+              image: (
+                await utils.getCdnImgLink.ensureData(
+                  data.user.information?.nid?.image,
+                )
+              ).map((img) => img || ""),
+            },
+            police_clearance: await Promise.all(
+              (
+                await utils.getCdnImgLink.ensureData(
+                  data.user.information?.police_clearance,
+                )
+              ).map(async (img) => {
+                const res = await axios.get(img!, {
+                  responseType: "arraybuffer",
+                });
+                return res.data as string;
+              }),
+            ),
+            english_certificate: await Promise.all(
+              (
+                await utils.getCdnImgLink.ensureData(
+                  data.user.information?.english_certificate,
+                )
+              ).map(async (img) => {
+                const res = await axios.get(img!, {
+                  responseType: "arraybuffer",
+                });
+                return res.data as string;
+              }),
+            ),
+            other_certificate: await Promise.all(
+              (
+                await utils.getCdnImgLink.ensureData(
+                  data.user.information?.other_certificate,
+                )
+              ).map(async (img) => {
+                const res = await axios.get(img!, {
+                  responseType: "arraybuffer",
+                });
+                return res.data as string;
+              }),
+            ),
+            academic: await Promise.all(
+              data.user.information?.academic
+                ? data.user.information.academic.map(async (aca) => {
+                    return {
+                      ...aca,
+                      certificate: await Promise.all(
+                        (
+                          await utils.getCdnImgLink.ensureData(aca.certificate)
+                        ).map(async (img) => {
+                          const res = await axios.get(img!, {
+                            responseType: "arraybuffer",
+                          });
+                          return res.data as string;
+                        }),
+                      ),
+                      transcript: await Promise.all(
+                        (
+                          await utils.getCdnImgLink.ensureData(aca.transcript)
+                        ).map(async (img) => {
+                          const res = await axios.get(img!, {
+                            responseType: "arraybuffer",
+                          });
+                          return res.data as string;
+                        }),
+                      ),
+                    };
+                  })
+                : [],
+            ),
+          },
+        },
+      };
+      setUpdatedData(updateData);
+    }
+  };
+
+  useEffect(() => {
+    dataFun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+  const fileGeneration = useMutation({
+    mutationFn: async () => {
+      if (updatedData)
+        status.setProgress(applicationId, {
+          percent: 15,
+          working_on: "Data Pre-processing done",
+        });
+      const nid = await getImg(nidRef);
+      status.setProgress(applicationId, {
+        percent: 5,
+        working_on: "NID Both Side Complied",
+      });
+      const translateNid = await getImg(nidTranslateRef);
+      status.setProgress(applicationId, {
+        percent: 5,
+        working_on: "NID Translation Generated",
+      });
+      const birth = await getImg(birthRef);
+      status.setProgress(applicationId, {
+        percent: 5,
+        working_on: "Birth Certificate Generated",
+      });
+      if (updatedData && generatedCV && generatedCertificate) {
+        status.setProgress(applicationId, {
+          percent: 25,
+          working_on: "Generating Client File",
+        });
+        await generateClientFile({
+          data: updatedData,
+          nid,
+          nidTranslate: translateNid,
+          birthImage: birth,
+          generatedCertificate,
+          generatedCV,
+        });
+        status.setProgress(applicationId, {
+          percent: 5,
+          working_on: "Client File Generated",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (updatedData && generatedCV && generatedCertificate) {
+      if (updatedData?.user.information?.CourseCertificateData?.length !== 0) {
+        if (
+          updatedData?.user.information?.CourseCertificateData?.length ===
+          generatedCertificate?.length
+        ) {
+          fileGeneration.mutate(undefined, {
+            onError: (e) => {
+              console.error(e);
+            },
+            onSettled: () => {
+              setGeneratedCertificate(undefined);
+              setGeneratedCV(undefined);
+              onClose();
+              setClientStatusId(undefined);
+              status.clearProgress(applicationId);
+            },
+          });
+        }
+      } else {
+        fileGeneration.mutate(undefined, {
+          onError: (e) => {
+            console.error(e);
+          },
+          onSettled: () => {
+            setGeneratedCertificate(undefined);
+            setGeneratedCV(undefined);
+            onClose();
+            setClientStatusId(undefined);
+            status.clearProgress(applicationId);
+          },
+        });
+      }
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updatedData, generatedCV, generatedCertificate]);
+
+  return (
+    <div className="opacity-0">
+      {/* nid files */}
+      <div
+        ref={nidRef}
+        className="flex h-[2333px] w-[1651px] flex-col items-center space-y-6 overflow-hidden"
+      >
+        {updatedData &&
+          updatedData?.user.information?.nid?.image.map((imgUrl, index) => {
+            return (
+              <Image
+                className="w-1/2 object-contain"
+                src={imgUrl || ""}
+                alt="nid"
+                width={600}
+                height={600}
+                key={index}
+              />
+            );
+          })}
+      </div>
+      {/* nid translation */}
+      <NidDivRef
+        imageRef={nidTranslateRef}
+        user={{
+          blood_group: updatedData?.user.information?.blood_group,
+          dob: updatedData?.user.information?.dob,
+          father_name: updatedData?.user.information?.father_name,
+          mother_name: updatedData?.user.information?.mother_name,
+          name:
+            updatedData?.user.information?.first_name +
+            " " +
+            updatedData?.user.information?.last_name,
+          nid_doi: updatedData?.user.information?.nid?.doi,
+          nid_image: updatedData?.user.information?.nid?.image,
+          nid_no: updatedData?.user.information?.nid?.number,
+          permanent_city: updatedData?.user.information?.permanent_city,
+          permanent_country: updatedData?.user.information?.permanent_country,
+          permanent_district: updatedData?.user.information?.permanent_district,
+          permanent_upazila: updatedData?.user.information?.permanent_upazila,
+        }}
+      />
+      {/* birth certificate */}
+      <div
+        className="relative h-[2333px] w-[1651px] overflow-hidden border-[6px] border-foreground/40"
+        ref={birthRef}
+      >
+        <Image
+          src={birthTemplate}
+          alt="birth"
+          className="h-[2333px] w-[1651px] object-cover"
+        />
+      </div>
+      {updatedData?.user.information?.CourseCertificateData?.map((c, index) => {
+        return (
+          <GenerateCertificate
+            key={index}
+            setGeneratedCertificate={setGeneratedCertificate}
+            data={c}
+            client={updatedData}
+          />
+        );
+      })}
+      {updatedData?.user.information?.id && (
+        <GenerateCV
+          clientInfoId={updatedData?.user.information?.id}
+          setGeneratedCV={setGeneratedCV}
+        />
+      )}
+    </div>
+  );
+};
+
+export default DownloadClientFile;

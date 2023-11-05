@@ -1,0 +1,238 @@
+"use client";
+import CVDownload from "@/components/admin/cv/cvDownload";
+import NidDownload from "@/components/admin/nid/nidDownload";
+import AppUpdateForm from "@/components/application/updateForm";
+import CustomModal from "@/components/shared/customModal";
+import { Button } from "@/components/ui/button";
+import DataTable from "@/components/ui/data-table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { api } from "@/trpc/client";
+import { TNidDocx, TUserInformation } from "@/types";
+import { RouterOutput } from "@/types/trpc";
+import { ColumnDef } from "@tanstack/react-table";
+
+import BirthCertificateDownload from "@/components/admin/bc/birthCertificateDownload";
+import CertificateList from "@/components/course-certificate/certificateList";
+import Link from "next/link";
+import { useState } from "react";
+import { LuMoreHorizontal } from "react-icons/lu";
+
+const UserList = ({ user }: { user: TUserInformation }) => {
+  const [download, setDownload] = useState<string | undefined>(undefined);
+  const [nidDownload, setNidDownload] = useState<TNidDocx | undefined>(
+    undefined,
+  );
+  const [selectedClient, setSelectedClient] = useState<{
+    id: string;
+    for: "course" | "visa";
+  } | null>(null);
+  const [downloadCertificate, setDownloadCertificate] = useState<
+    string | undefined
+  >(undefined);
+  const utils = api.useUtils();
+  const { data, isLoading, isError, error } = api.clients.getAll.useQuery();
+  if (isError) {
+    throw new Error(error.message);
+  }
+  const columns: ColumnDef<RouterOutput["clients"]["getAll"][0]>[] = [
+    {
+      accessorKey: "system_id",
+      header: "ID",
+      accessorFn: ({ system_id }) => {
+        return `NEER-${system_id}`;
+      },
+    },
+    {
+      accessorKey: "full_name",
+      header: "Full Name",
+      cell: ({ row }) => (
+        <Link
+          className="hover:underline"
+          href={`/client-profile/${row.original.id}`}
+        >
+          {row.original.information?.first_name
+            ? row.original.information?.first_name
+            : ""}{" "}
+          {row.original.information?.last_name
+            ? row.original.information?.last_name
+            : ""}
+        </Link>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+    },
+    {
+      accessorKey: "information.phone",
+      header: "Phone",
+    },
+
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const { data: client } = api.clients.getbyId.useQuery(row.original.id);
+        if (client) {
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <LuMoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Downloads</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {(user.user?.role === "ADMIN" ||
+                  (user.user?.role === "EMPLOYEE" &&
+                    user?.user?.employee_permission?.cv)) &&
+                  client.client_permission?.visa_application && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setDownload(client?.id)}
+                    >
+                      CV
+                    </DropdownMenuItem>
+                  )}
+                {(user.user?.role === "ADMIN" ||
+                  (user.user?.role === "EMPLOYEE" &&
+                    user?.user?.employee_permission?.nid)) &&
+                  client.client_permission?.visa_application && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={async () => {
+                        const nid_image = await utils.getCdnImgLink.ensureData(
+                          client?.information?.image,
+                        );
+                        setNidDownload({
+                          nid_image,
+                          name:
+                            client?.information?.first_name +
+                            " " +
+                            client?.information?.last_name,
+                          father_name: client?.information?.father_name,
+                          mother_name: client?.information?.mother_name,
+                          nid_no: client?.information?.nid?.number,
+                          dob: client?.information?.dob,
+                          nid_doi: client?.information?.nid?.doi,
+                          permanent_city: client?.information?.permanent_city,
+                          permanent_district:
+                            client?.information?.permanent_district,
+                          permanent_upazila:
+                            client?.information?.permanent_upazila,
+                          permanent_country:
+                            client?.information?.permanent_country,
+                          blood_group: client?.information?.blood_group,
+                        });
+                      }}
+                    >
+                      NID
+                    </DropdownMenuItem>
+                  )}
+                {!client.information?.birth_certificate?.is_english &&
+                  (user.user?.role === "ADMIN" ||
+                    (user.user?.role === "EMPLOYEE" &&
+                      user?.user?.employee_permission?.client)) &&
+                  client.client_permission?.visa_application && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={async () => {
+                        setDownloadCertificate(client.information?.id);
+                      }}
+                    >
+                      Birth Certificate
+                    </DropdownMenuItem>
+                  )}
+                <DropdownMenuLabel className="mt-6">Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {(user.user?.role === "ADMIN" ||
+                  (user.user?.role === "EMPLOYEE" &&
+                    user?.user?.employee_permission?.client)) &&
+                  client.client_permission?.visa_application && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setSelectedClient({ id: client.id, for: "course" })
+                      }
+                    >
+                      Course Certificate
+                    </DropdownMenuItem>
+                  )}
+                {(user.user?.role === "ADMIN" ||
+                  (user.user?.role === "EMPLOYEE" &&
+                    user?.user?.employee_permission?.client)) &&
+                  client.client_permission?.visa_application && (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() =>
+                        setSelectedClient({ id: client.id, for: "visa" })
+                      }
+                    >
+                      Visa Information
+                    </DropdownMenuItem>
+                  )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        }
+      },
+    },
+  ];
+
+  return (
+    <main>
+      <h1 className="flex justify-center text-3xl font-semibold capitalize text-primary">
+        List of Clients
+      </h1>
+      <Separator className="mb-2" />
+      <DataTable columns={columns} data={data} loading={isLoading} />
+      {download && (
+        <div className="w-full overflow-auto opacity-0">
+          <CVDownload cvId={download} setDownload={setDownload} />
+        </div>
+      )}
+      {nidDownload && (
+        <div className="mt-96 opacity-0">
+          <NidDownload user={nidDownload} setNidDownload={setNidDownload} />
+        </div>
+      )}
+      {downloadCertificate && (
+        <div className="mt-96 opacity-0">
+          <BirthCertificateDownload
+            id={downloadCertificate}
+            setClose={() => setDownloadCertificate(undefined)}
+          />
+        </div>
+      )}
+      {selectedClient?.for === "course" && (
+        <CertificateList
+          clientId={selectedClient.id}
+          setClose={() => setSelectedClient(null)}
+        />
+      )}
+      {selectedClient?.for === "visa" && (
+        <CustomModal
+          open={!!selectedClient}
+          onClose={() => setSelectedClient(null)}
+        >
+          <AppUpdateForm
+            clientId={selectedClient.id}
+            onClose={() => setSelectedClient(null)}
+          />
+        </CustomModal>
+      )}
+    </main>
+  );
+};
+
+export default UserList;

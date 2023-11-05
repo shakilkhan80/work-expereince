@@ -1,0 +1,117 @@
+import { useCADContext } from "@/contexts/cad";
+import GenerateFundFile from "@/lib/generate-docx/fundFile";
+import { api } from "@/trpc/client";
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { NidDivRefArray } from "../nid/nidDivRefArray";
+
+const DownloadFundFile = ({
+  applicationId,
+  onClose,
+}: {
+  applicationId: string;
+  onClose: () => void;
+}) => {
+  const [nidTranslateOutput, setNidTranslateOutput] = useState<string[]>([]);
+  const CAD = useCADContext();
+  const utils = api.useUtils();
+  const { data, isLoading, isError, error } =
+    api.files.getFundFileData.useQuery(applicationId);
+  if (isError) {
+    throw new Error(error.message);
+  }
+
+  const myFun = async () => {
+    if (!data) {
+      return toast.error("no data");
+    }
+    const updatedData = await Promise.all(
+      data.sponsor.map(async (d) => {
+        return {
+          ...d,
+          tax_assesment: await Promise.all(
+            ((await utils.getCdnImgLink.ensureData(d.tax_assesment)) || []).map(
+              async (img) => {
+                const res = await axios.get(img!, {
+                  responseType: "arraybuffer",
+                });
+                return res.data as string;
+              },
+            ),
+          ),
+          tax_certificate: await Promise.all(
+            (
+              (await utils.getCdnImgLink.ensureData(d.tax_certificate)) || []
+            ).map(async (img) => {
+              const res = await axios.get(img!, {
+                responseType: "arraybuffer",
+              });
+              return res.data as string;
+            }),
+          ),
+          information: {
+            ...d.information!,
+            nid: {
+              ...d.information?.nid!,
+              image: await Promise.all(
+                (
+                  (await utils.getCdnImgLink.ensureData(
+                    d.information?.nid?.image,
+                  )) || []
+                ).map(async (img) => {
+                  const res = await axios.get(img!, {
+                    responseType: "arraybuffer",
+                  });
+                  return res.data as string;
+                }),
+              ),
+            },
+          },
+        };
+      }),
+    );
+    toast(
+      await GenerateFundFile({
+        data: { user: data.user, sponsor: updatedData },
+        CAD: CAD!,
+        nidTranslate: nidTranslateOutput,
+      }),
+    );
+  };
+  useEffect(
+    () => {
+      if (nidTranslateOutput.length > 0 && data) {
+        myFun();
+        setNidTranslateOutput([]);
+        onClose();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, nidTranslateOutput],
+  );
+  if (isLoading) {
+    return null;
+  }
+  return (
+    <div className="opacity-0">
+      {/* nid translation */}
+
+      {data.sponsor.map((sponsor, index) => {
+        if (!sponsor.information) {
+          return null;
+        }
+        return (
+          <NidDivRefArray
+            key={index}
+            index={index}
+            setNidTranslateOutput={setNidTranslateOutput}
+            user={sponsor.information}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+export default DownloadFundFile;

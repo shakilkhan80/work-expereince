@@ -1,0 +1,348 @@
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useClientFileStore } from "@/hooks/clientFile";
+import { api } from "@/trpc/client";
+import { TApplication, TUApplication, TavailableCountries } from "@/types";
+import {
+  ZUApplication,
+  availableCountriesList,
+} from "@/validators/application";
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { LuDownload, LuEye, LuPencil } from "react-icons/lu";
+import { toast } from "sonner";
+import DownloadClientFile from "../admin/clientFile/download";
+import DownloadFundFile from "../admin/fundFile/download";
+import CustomModal from "../shared/customModal";
+import { PopUp } from "../shared/popup";
+import { Label } from "../ui/label";
+import CustomLoader from "../ui/loader";
+import { Progress } from "../ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Separator } from "../ui/separator";
+import { Textarea } from "../ui/textarea";
+
+const AppUpdateForm = ({
+  clientId,
+  onClose,
+}: {
+  clientId: string;
+  onClose: () => void;
+}) => {
+  const [edit, setEdit] = useState<TApplication | undefined>(undefined);
+  const [fundApplicationId, setFundApplicationId] = useState<
+    string | undefined
+  >(undefined);
+  const [clientApplicationId, setClientApplicationId] = useState<
+    string | undefined
+  >(undefined);
+  const [clientStatusId, setClientStatusId] = useState<string | undefined>();
+  const { data, isLoading, isError, error } =
+    api.application.getByUserId.useQuery(clientId);
+  const status = useClientFileStore();
+  if (isLoading) {
+    return <CustomLoader />;
+  }
+  if (isError) {
+    throw new Error(error.message);
+  }
+  return (
+    <div>
+      <div className="flex justify-between">
+        <h3 className="mb-2 text-xl font-semibold text-primary underline">
+          Client&apos;s Application List:
+        </h3>
+      </div>
+      <div className="mb-4">
+        <Separator className="h-1 bg-gradient-to-r from-primary to-secondary" />
+        {clientStatusId && (
+          <PopUp open={!!clientStatusId}>
+            <Label className="flex justify-center">
+              {status.getProgress(clientStatusId).working_on}
+            </Label>
+            <Progress value={status.getProgress(clientStatusId).percent} />
+          </PopUp>
+        )}
+      </div>
+      {data.length > 0 ? (
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-2">
+          {data.map((app) => {
+            return (
+              <div
+                key={app.id}
+                className="group relative rounded-md p-4 shadow-md shadow-foreground "
+              >
+                <div className="transition-all duration-500 ease-in-out group-hover:scale-75">
+                  <h3 className="text-center text-xl text-primary">
+                    {app.type} Visa
+                  </h3>
+                  <p>Status: {app.status}</p>
+                  <p>country: {app.to_country}</p>
+                  <p>sop: {app.sop?.slice(0, 50)}</p>
+                  <div className="mt-4 flex justify-center">
+                    <Link
+                      className="w-5/12 rounded-md bg-primary py-2 text-center text-white shadow-sm shadow-foreground transition-all duration-500 ease-in hover:w-1/2 hover:bg-primary/90"
+                      href={`/applications/${app.id}/university`}
+                    >
+                      View
+                    </Link>
+                  </div>
+                </div>
+                <div className="pointer-events-none absolute bottom-0 left-0 h-0 w-full rounded-md bg-primary opacity-0 transition-all duration-500 ease-in-out group-hover:pointer-events-auto group-hover:h-full group-hover:opacity-100">
+                  <div className="grid h-full grid-cols-2">
+                    <Link
+                      href={`/applications/${app.id}/university`}
+                      className="flex flex-col items-center justify-center rounded-md border-b-2 text-background transition-colors duration-500 ease-in hover:bg-green-300"
+                    >
+                      <p>View</p>
+                      <span>
+                        <LuEye size={36} />
+                      </span>
+                    </Link>
+                    <button
+                      onClick={() => setEdit(app)}
+                      type="button"
+                      className="flex flex-col items-center justify-center rounded-md border-b-2 text-background transition-colors duration-500 ease-in hover:bg-green-300"
+                    >
+                      <p>Edit</p>
+                      <span>
+                        <LuPencil size={36} />
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setFundApplicationId(app.id)}
+                      type="button"
+                      className="flex flex-col items-center justify-center rounded-md border-b-2 text-background transition-colors duration-500 ease-in hover:bg-green-300"
+                    >
+                      <p>Fund File</p>
+                      <span>
+                        <LuDownload size={36} />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClientApplicationId(app.id)}
+                      className="flex flex-col items-center justify-center rounded-md border-b-2 text-background transition-colors duration-500 ease-in hover:bg-green-300"
+                    >
+                      <p>Client File</p>
+                      <span>
+                        <LuDownload size={36} />
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p>1.</p>
+      )}
+
+      {/* edit modal */}
+      <CustomModal open={!!edit} onClose={() => setEdit(undefined)}>
+        {edit && (
+          <UpdateApplicationForm
+            data={edit}
+            onClose={() => setEdit(undefined)}
+          />
+        )}
+      </CustomModal>
+      {fundApplicationId && (
+        <DownloadFundFile
+          applicationId={fundApplicationId}
+          onClose={() => setFundApplicationId(undefined)}
+        />
+      )}
+      {clientApplicationId && (
+        <DownloadClientFile
+          applicationId={clientApplicationId}
+          setClientStatusId={setClientStatusId}
+          onClose={() => setClientApplicationId(undefined)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default AppUpdateForm;
+
+const UpdateApplicationForm = ({
+  data,
+  onClose,
+}: {
+  data: TApplication;
+  onClose: () => void;
+}) => {
+  const form = useForm<TUApplication>({
+    resolver: zodResolver(ZUApplication),
+    defaultValues: {
+      status: data.status,
+      id: data.id,
+      sop: data.sop || "",
+      to_country: (data.to_country as TavailableCountries) || undefined,
+    },
+  });
+  const utils = api.useUtils();
+  const applicationMutation = api.application.editById.useMutation({
+    onMutate: () => {
+      return toast.loading("Updating Application....");
+    },
+    onSuccess: (val, _, context) => {
+      toast.success(val || "Updated successfully", {
+        id: context,
+      });
+      utils.application.getByUserId.invalidate();
+      onClose();
+    },
+    onError: (e, _, context) => {
+      toast.error(e.message || "Something went wrong!", {
+        id: context,
+      });
+    },
+  });
+  let fields = <></>;
+
+  switch (data.type) {
+    case "STUDENT":
+      fields = (
+        <>
+          <FormField
+            control={form.control}
+            name="to_country"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Target Country of your Application</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="countries..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableCountriesList.map((country) => {
+                      return (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="sop"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Statement of Purpose</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder={`Statement of purpose for going to ${
+                      form.getValues("to_country") || "that country"
+                    }`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      );
+      break;
+    default:
+      fields = (
+        <>
+          <FormField
+            control={form.control}
+            name="to_country"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Target Country of your Application</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="countries..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableCountriesList.map((country) => {
+                      return (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="sop"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Statement of Purpose</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder={`Statement of purpose for going to ${
+                      form.getValues("to_country") || "that country"
+                    }`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      );
+  }
+  return (
+    <div className="max-h-[85vh] overflow-auto">
+      <h1 className="mb-4 border-b-2 text-center text-2xl font-semibold text-primary">
+        Update Application: {data.type}
+      </h1>
+
+      {/* form */}
+      <Form {...form}>
+        <form
+          className="gap-4 space-y-4"
+          onSubmit={form.handleSubmit((values) => {
+            applicationMutation.mutate({ id: data.id, application: values });
+          })}
+        >
+          {fields}
+          <div className="mt-6 flex justify-end">
+            <Button>Update</Button>
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+};

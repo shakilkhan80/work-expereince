@@ -1,0 +1,146 @@
+import { TCAD, TFullFundData } from "@/types";
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  Packer,
+  PageNumber,
+  Paragraph,
+  TableOfContents,
+  TextRun,
+} from "docx";
+import { saveAs } from "file-saver";
+import { htmlimg_to_docx, htmlimg_to_docx2 } from "./docx";
+import { GenerateAffiDavit } from "./generateAffidavit";
+import { GenerateCaValuation } from "./generateCa_Valuation";
+
+const GenerateFundFile = async ({
+  data,
+  CAD,
+  nidTranslate,
+}: {
+  data: TFullFundData;
+  CAD: TCAD;
+  nidTranslate: string[];
+}) => {
+  const tableOfContents = new TableOfContents("Summary", {
+    hyperlink: true,
+    headingStyleRange: "1-5",
+    captionLabel: "TableOfContents",
+  });
+  try {
+    const fundSections = [];
+    let itr = 0;
+    for (const sponsor of data.sponsor) {
+      let titleNumber = 1;
+      let nidPictures: Paragraph[] = [];
+      if (sponsor.information?.nid?.image) {
+        nidPictures = [
+          ...htmlimg_to_docx2(
+            sponsor.information.nid.image,
+            `${
+              itr + 1
+            }.${titleNumber++} SPONSOR (${sponsor.information.first_name?.toUpperCase()} ${sponsor.information.last_name?.toUpperCase()} MAIN APPLICANT'S  RELATION ${sponsor.information.inauguration_user?.relation.toUpperCase()})}) NID CARD`,
+          ),
+        ];
+      } else {
+        return `nid images not found for ${sponsor.information?.first_name} ${sponsor.information?.last_name}`;
+      }
+      let nidPages = [];
+      if (itr === 0) {
+        nidPages.push(tableOfContents);
+      }
+      nidPages.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          pageBreakBefore: true,
+          children: [
+            new TextRun({
+              text: `${itr + 1}. APPLICANT'S SPONSOR ${sponsor.information
+                ?.first_name} ${sponsor.information
+                ?.last_name} IDENTIFICATION CERTIFICATES`,
+              size: 100,
+              allCaps: true,
+            }),
+          ],
+        }),
+        ...nidPictures,
+        ...htmlimg_to_docx(
+          nidTranslate[itr],
+          `${
+            itr + 1
+          }.${titleNumber++}. SPONSOR (${sponsor.information?.first_name?.toUpperCase()} ${sponsor.information?.last_name?.toUpperCase()} MAIN APPLICANT'S  RELATION ${sponsor.information?.inauguration_user?.relation.toUpperCase()})}) NID CARD TRANSLATION`,
+        ),
+      );
+      fundSections.push(
+        {
+          headers: {
+            default: {
+              options: {
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: "",
+                      }),
+                    ],
+                  }),
+                ],
+              },
+            },
+          },
+          footers: {
+            default: {
+              options: {
+                children: [
+                  new Paragraph({
+                    spacing: { before: 600 },
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        children: [
+                          PageNumber.CURRENT,
+                          ` Out Of `,
+                          PageNumber.TOTAL_PAGES,
+                          ` Pages`,
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              },
+            },
+          },
+          children: nidPages,
+        },
+        ...(await GenerateAffiDavit({
+          data: sponsor,
+          client: data.user,
+          CAD,
+        })),
+        ...(await GenerateCaValuation({
+          caData: sponsor,
+          userData: data.user,
+          CAD,
+        })),
+      );
+      itr++;
+    }
+
+    const doc = new Document({
+      sections: fundSections,
+    });
+    Packer.toBlob(doc).then((blob) => {
+      saveAs(
+        blob,
+        `${data?.user?.information?.first_name} ${data?.user?.information?.last_name}'s Fund file".docx`,
+      );
+    });
+    return "generated";
+  } catch (error) {
+    console.error("Error fetching or embedding fund file:", error);
+    return "Error fetching or embedding fund file:";
+  }
+};
+export default GenerateFundFile;

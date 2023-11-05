@@ -1,0 +1,917 @@
+import { TFullClientData } from "@/types";
+import dateConverter from "@nexisltd/date2word";
+import { format } from "date-fns";
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  Packer,
+  PageNumber,
+  Paragraph,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableOfContents,
+  TableRow,
+  TextRun,
+  VerticalAlign,
+  WidthType,
+} from "docx";
+import { saveAs } from "file-saver";
+import { htmlimg_to_docx } from "./docx";
+
+export const generateClientFile = async ({
+  data,
+  nid,
+  nidTranslate,
+  birthImage,
+  generatedCertificate,
+  generatedCV,
+}: {
+  data: TFullClientData;
+  nid: string;
+  nidTranslate: string;
+  birthImage: string;
+  generatedCertificate: string[] | undefined;
+  generatedCV: string;
+}) => {
+  const permanent_address = `${
+    data?.user.information?.permanent_address || ""
+  } ${data?.user.information?.permanent_city || ""} ${
+    data?.user.information?.permanent_postal_code || ""
+  } ${data?.user.information?.permanent_upazila || ""} ${
+    data?.user.information?.permanent_district || ""
+  } ${data?.user.information?.permanent_country || ""}`;
+  let titleNumber = 1;
+  const getNextTitleNumber = () => {
+    return `${titleNumber++}`;
+  };
+  let secondaryTitleNumber = 1;
+  const getSecondaryTitleNumber = () => {
+    return `${secondaryTitleNumber++}`;
+  };
+  let thirdTitleNumber = 1;
+  const getThirdTitleNumber = () => {
+    return `${thirdTitleNumber++}`;
+  };
+  let fourthTitleNumber = 1;
+  const getFourthTitleNumber = () => {
+    return `${fourthTitleNumber++}`;
+  };
+  const birthTable = [
+    new Paragraph({
+      pageBreakBefore: true,
+      spacing: { after: 300 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `1.4.  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) BIRTH CERTIFICATE TRANSLATION`,
+          size: 24,
+          color: "#0E85B0",
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 300 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "government of the people's republic of bangladesh",
+          allCaps: true,
+          size: 24,
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "office of birth and death register",
+          allCaps: true,
+          size: 24,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 300 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "birth  registration  translation",
+          allCaps: true,
+          size: 22,
+          bold: true,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { after: 600, before: 100 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "as per the rules of bangladesh govt",
+          allCaps: true,
+          size: 16,
+        }),
+      ],
+    }),
+    new Table({
+      margins: { right: 100, left: 100, top: 50, bottom: 50 },
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      rows: [
+        //book no
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Register No`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.birth_certificate?.book_no || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //issue address
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Issued registration office address `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.birth_certificate
+                          ?.register_address || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //doi
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Date of issue `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${format(
+                        new Date(
+                          data?.user.information?.birth_certificate?.doi || "",
+                        ),
+                        "dd/MM/yyyy",
+                      )}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //dor
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Date of registration `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${format(
+                        new Date(
+                          data?.user.information?.birth_certificate?.dor || "",
+                        ),
+                        "dd/MM/yyyy",
+                      )}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //birth certificate number
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Birth certificate number `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.birth_certificate?.number || 0
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //name
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Name`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${data?.user.information?.first_name || ""} ${
+                        data?.user.information?.last_name || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //gender
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Sex `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${data?.user.information?.gender || ""}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //order of child
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Order of child `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${data?.user.information?.birth_certificate?.order_of_child}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //Dob in number
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Date of birth in number `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${format(
+                        new Date(data?.user.information?.dob || ""),
+                        "dd/MM/yyyy",
+                      )}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //dob in word
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Date of birth in word `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: dateConverter(
+                        data?.user.information?.dob || null,
+                        {},
+                      ),
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //birth place
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Place of birth `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.birth_certificate
+                          ?.birth_place || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //permanent address
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Permanent address `,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+              verticalAlign: VerticalAlign.CENTER,
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${permanent_address}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //Father name
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Father's name`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${data?.user.information?.father_name || ""}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //father nationality
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Father's nationality`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.father_nationality || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //father nid or birth certificate
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Father's Nid no or Father's birth certificate no`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.father_nid_no
+                          ? data?.user.information?.father_nid_no
+                          : data?.user.information?.father_birth_reg_no || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //Mother name
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Mother's name`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${data?.user.information?.mother_name || ""}`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //Mother nationality
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Mother's nationality`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.mother_nationality || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        //mother nid or birth certificate
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Mother's Nid no or Mother's birth certificate no`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `${
+                        data?.user.information?.mother_nid_no
+                          ? data?.user.information?.mother_nid_no
+                          : data?.user.information?.mother_birth_reg_no || ""
+                      }`,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 4000 },
+      children: [
+        new TextRun({
+          text: "    seal of register office",
+          bold: true,
+          allCaps: true,
+        }),
+        new TextRun({
+          text: "                                signature and seal of the registrar",
+          bold: true,
+          allCaps: true,
+        }),
+      ],
+    }),
+  ];
+
+  try {
+    const academicChildrens: Paragraph[] = [];
+    data?.user.information?.academic?.forEach((aca) => {
+      academicChildrens.push(
+        ...htmlimg_to_docx(
+          aca.certificate[0],
+          `2.${getSecondaryTitleNumber()}  MAIN APPLICANT'S (${data?.user.information?.first_name
+            ?.toUpperCase()
+            ?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) ACADEMIC CERTIFICATE OF ${aca.program_name?.toUpperCase()}`,
+        ),
+      );
+      academicChildrens.push(
+        ...htmlimg_to_docx(
+          aca.transcript[0],
+          `2.${getSecondaryTitleNumber()}  MAIN APPLICANT'S (${data?.user.information?.first_name
+            ?.toUpperCase()
+            ?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) ACADEMIC TRANSCRIPT OF ${aca.program_name?.toUpperCase()}`,
+        ),
+      );
+    });
+    const nonAcademicChildrens: Paragraph[] = [];
+    data?.user?.information?.english_certificate?.forEach((aca, index) => {
+      nonAcademicChildrens.push(
+        ...htmlimg_to_docx(
+          aca,
+          `3.${getThirdTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name
+            ?.toUpperCase()
+            ?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) ENGLISH CERTIFICATE -${
+            index + 1
+          }`,
+        ),
+      );
+    });
+
+    data?.user?.information?.other_certificate?.forEach((aca, index) => {
+      nonAcademicChildrens.push(
+        ...htmlimg_to_docx(
+          aca,
+          `3.${getThirdTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name
+            ?.toUpperCase()
+            ?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) OTHERS CERTIFICATE -${
+            index + 1
+          }`,
+        ),
+      );
+    });
+    generatedCertificate?.forEach((aca, index) => {
+      nonAcademicChildrens.push(
+        ...htmlimg_to_docx(
+          aca,
+          `3.${getThirdTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name
+            ?.toUpperCase()
+            ?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) OTHERS CERTIFICATE -${
+            index + 1
+          }`,
+        ),
+      );
+    });
+    const sop = () => {
+      if (data) {
+        return new Paragraph({
+          children: [
+            new TextRun({
+              text: `${data.sop}`,
+            }),
+          ],
+        });
+      } else {
+        return new Paragraph({
+          children: [],
+        });
+      }
+    };
+    const children = [
+      new TableOfContents("Summary", {
+        hyperlink: true,
+        headingStyleRange: "1-5",
+        captionLabel: "TableOfContents",
+      }),
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: true,
+        children: [
+          new TextRun({
+            text: `1. APPLICANT'S IDENTIFICATION CERTIFICATES`,
+            size: 70,
+          }),
+        ],
+      }),
+
+      ...htmlimg_to_docx(
+        nid,
+        `1.${getNextTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name
+          ?.toUpperCase()
+          ?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) NID CARD`,
+      ),
+      ...htmlimg_to_docx(
+        nidTranslate,
+        `1.${getNextTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) NID CARD TRANSLATION`,
+      ),
+      ...htmlimg_to_docx(
+        data?.user.information?.birth_certificate?.image[0]!,
+        `1.${getNextTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) BIRTH CERTIFICATE`,
+      ),
+
+      ...(data?.user.information?.birth_certificate?.is_english
+        ? []
+        : birthTable),
+
+      ...htmlimg_to_docx(
+        data?.user.information?.police_clearance[0]!,
+        `1.${getNextTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) POLICE CLEARENCE FRONTSIDE`,
+      ),
+      ...htmlimg_to_docx(
+        data?.user.information?.police_clearance[1]!,
+        `1.${getNextTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) POLICE CLEARENCE BACKSIDE`,
+      ),
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: true,
+
+        children: [
+          new TextRun({
+            text: `2. APPLICANT'S ACADEMIC CERTIFICATES`,
+            size: 70,
+          }),
+        ],
+      }),
+      ...academicChildrens,
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: true,
+        children: [
+          new TextRun({
+            text: `3. APPLICANT'S NON-ACADEMIC CERTIFICATES`,
+            size: 70,
+          }),
+        ],
+      }),
+      ...nonAcademicChildrens,
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: true,
+
+        children: [
+          new TextRun({
+            text: `4. APPLICANT'S CV & STATEMENT OF PURPOSE`,
+            size: 70,
+          }),
+        ],
+      }),
+      ...htmlimg_to_docx(
+        generatedCV,
+        `4.${getFourthTitleNumber()}.  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) CV`,
+      ),
+      new Paragraph({
+        pageBreakBefore: true,
+        spacing: { after: 300 },
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: `4.${getFourthTitleNumber()}  MAIN APPLICANT'S (${data?.user.information?.first_name?.toUpperCase()} ${data?.user.information?.last_name?.toUpperCase()}) SOP`,
+            size: 24,
+            color: "#0E85B0",
+          }),
+        ],
+      }),
+      sop(),
+    ];
+
+    const doc = new Document({
+      features: {
+        updateFields: true,
+      },
+      sections: [
+        {
+          footers: {
+            default: {
+              options: {
+                children: [
+                  new Paragraph({
+                    spacing: { before: 600 },
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        children: [
+                          PageNumber.CURRENT,
+                          ` Out Of `,
+                          PageNumber.TOTAL_PAGES,
+                          ` Pages`,
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              },
+            },
+          },
+          children,
+        },
+      ],
+    });
+    Packer.toBlob(doc).then((blob) => {
+      saveAs(
+        blob,
+        `${data?.user.information?.first_name} ${data?.user.information?.last_name}'s Client file".docx`,
+      );
+    });
+    return "successfully generated";
+  } catch (error) {
+    console.error("Error fetching or embedding client file:", error);
+  }
+};
