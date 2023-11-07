@@ -1,0 +1,86 @@
+ <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <LuMoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="cursor-pointer space-x-2 text-primary">
+                  <LuDownload /> <span>Download</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                      className="cursor-pointer space-x-2 text-primary"
+                      onClick={() =>
+                        setSelecteApplication({
+                          data: row.original,
+                          for: "ClientFile",
+                        })
+                      }
+                    >
+                      <LuDownload /> <span>Fund File</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setSelecteApplication({
+                          data: row.original,
+                          for: "ClientFile",
+                        })
+                      }
+                      className="cursor-pointer space-x-2 text-primary"
+                    >
+                      <LuDownload /> <span>Client File</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setSelecteApplication({
+                          data: row.original,
+                          for: "Affidavit",
+                        })
+                      }
+                      className="cursor-pointer space-x-2 text-primary"
+                    >
+                      <LuDownload /> <span>Affidavit</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setSelecteApplication({
+                          data: row.original,
+                          for: "CAValuation",
+                        })
+                      }
+                      className="cursor-pointer space-x-2 text-primary"
+                    >
+                      <LuDownload /> <span>CA Valuation</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="cursor-pointer space-x-2 text-warning">
+                  <LuPencil /> <span>Actions</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                      className="cursor-pointer space-x-2 text-warning"
+                      onClick={() => setEdit(row.original)}
+                    >
+                      <LuPencil /> <span>Edit</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => setDeleteApp(row.original.id)}
+                      className="cursor-pointer space-x-2 text-destructive"
+                    >
+                      <LuTrash2 /> <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            </DropdownMenuContent>
+          </DropdownMenu>

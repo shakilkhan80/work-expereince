@@ -1,0 +1,45 @@
+//option 1
+const [selecteApplication, setSelecteApplication] = useState<{
+    data: TApplicationByUserId;
+    for: "FundFile" | "ClientFile" | "Affidavit" | "CAValuation";
+  } | null>(null);
+
+//option 2
+<DropdownMenuItem
+                      className="cursor-pointer space-x-2 text-primary"
+                      onClick={() =>
+                        setSelecteApplication({
+                          data: row.original,
+                          for: "ClientFile",
+                        })
+                      }
+                    >
+                      <LuDownload /> <span>Fund File</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setSelecteApplication({
+                          data: row.original,
+                          for: "ClientFile",
+                        })
+                      }
+                      className="cursor-pointer space-x-2 text-primary"
+                    >
+                      <LuDownload /> <span>Client File</span>
+                    </DropdownMenuItem>
+//option 3
+{selecteApplication?.for === "ClientFile" &&
+        selecteApplication.data.id && (
+          <DownloadClientFile
+            applicationId={selecteApplication.data.id}
+            setClientStatusId={setClientStatusId}
+            onClose={() => setSelecteApplication(null)}
+          />
+        )}
+      {selecteApplication?.for === "Affidavit" && (
+        <AffidavitDownloadPage
+          applicationData={selecteApplication.data}
+          setClose={() => setSelecteApplication(null)}
+        />
+      )}
