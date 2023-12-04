@@ -1,0 +1,42 @@
+const [alertMsg, setAlertMsg] = useState<{
+    msg: string;
+    type: "error" | "success" | "warn";
+  } | null>();
+
+ useEffect(() => {
+    if (alertMsg) {
+      const msgTime = setTimeout(() => {
+        setAlertMsg(null);
+      }, 3000);
+      return () => clearTimeout(msgTime);
+    }
+  }, [alertMsg]);
+
+<DropdownMenuItem
+                className="cursor-pointer space-x-2 text-warning"
+                onClick={() => {
+                  productDeleteMuation.mutate(
+                    row.original.slug ? row.original.slug : "",
+                    {
+                      onSuccess: () => {
+                        setAlertMsg({
+                          msg: "Successfully Deleted product",
+                          type: "success",
+                        });
+                        queryClient.invalidateQueries({
+                          queryKey: ["products-all", "get"],
+                        });
+                      },
+                      onError: (error) => {
+                        setAlertMsg({
+                          msg: error.message,
+                          type: "error",
+                        });
+                      },
+                    },
+                  );
+                }}
+              >
+                <LuTrash />
+                <span>delete product</span>
+              </DropdownMenuItem>
