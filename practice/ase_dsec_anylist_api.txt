@@ -1,0 +1,48 @@
+export const getCustomerOrders = async (id: string) => {
+  try {
+    return await prisma.order.findMany({
+      where: { customer_id: id },
+      include: {
+        items: true,
+        shipping_address: true,
+        payment: true,
+        customer: true,
+      },
+      orderBy: {
+        created_at: "desc",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const createOrder = async ({
+  body,
+  id,
+}: {
+  body: unknown;
+  id: string;
+}) => {
+  try {
+    const { items, ...data } = ZCOrder.parse(body);
+    const createdOrder = await prisma.order.create({
+      data: { ...data, customer_id: id },
+      select: {
+        id: true,
+        token_no: true,
+        items: true,
+        order_status: true,
+        payment: { select: { amount: true, is_validated: true } },
+        shipping_address: true,
+        created_at: true,
+      },
+    });
+    await prisma.orderItem.createMany({
+      data: items.map((item) => ({ ...item, order_Id: createdOrder.id })),
+    });
+    return { ...createdOrder, items };
+  } catch (error) {
+    console.error(error);
+  }
+};
