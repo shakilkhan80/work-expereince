@@ -1,0 +1,51 @@
+
+step: 1 
+
+const [printing, setPrinting] = useState(false);
+
+step: 2
+
+ const Print = (id: number | null) => {
+    let printContents = document.getElementById(
+      `printablediv.${id}`
+    )?.innerHTML;
+
+    if (printContents !== undefined) {
+      let originalContents = document.body.innerHTML;
+      document.body.innerHTML = printContents;
+
+      const styles = `
+        <style>
+          @media print {
+            body {
+              margin: 25px;
+            }
+          }
+        </style>
+      `;
+      document.head.insertAdjacentHTML("beforeend", styles);
+
+      window.print();
+      document.body.innerHTML = originalContents;
+      window.location.reload();
+    } else {
+      console.error(`Element with ID 'printablediv.${id}' not found.`);
+    }
+  };
+
+step: 3
+
+{!printing && (
+                      <FcPrint
+                        className="text-2xl cursor-pointer"
+                        onClick={() => {
+                          setPrinting(true);
+                          setTimeout(() => {
+                            Print(item.id);
+                            setTimeout(() => {
+                              setPrinting(false);
+                            }, 500);
+                          }, 100);
+                        }}
+                      />
+                    )}
