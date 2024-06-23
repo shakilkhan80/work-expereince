@@ -1,0 +1,30 @@
+//use this code to open project just one click by using notepad and power shell
+
+function runmadhobi{
+cd Desktop\Shakil\work\madhobi-mart 
+git pull
+pnpm i
+pnpm dev
+}
+
+function school{
+Set-Location -Path .\Desktop\Shakil\work\School-Management-Frontend\
+git pull
+pnpm i
+pnpm dev
+}
+
+function neer {
+Set-Location -Path .\Desktop\Shakil\work\neer-education\
+git pull
+pnpm i
+pnpm prisma generate
+pnpm dev
+}
+
+function school {
+Set-Location -Path C:\Users\Shakil Khan\Desktop\Shakil\work\School-Management-Frontend
+git pull
+pnpm i 
+pnpm dev
+}
